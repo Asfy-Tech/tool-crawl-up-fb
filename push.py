@@ -113,9 +113,9 @@ def getData():
                             print(f"=> Đăng nhập thất bại!")
                             account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
                             print("=> Chờ 60s để xử lý tiếp...")
-                            browser.close()
                             sleep(60)  # Tạm dừng trước khi tiếp tục kiểm tra lại
                             continue
+                    account_instance.update_account(user['id'], {'status_login': 2})
                 except KeyboardInterrupt:
                     account_instance.update_account(user['id'], {'status_login': 2})
                     print(f'Chương trình đã bị dừng!')
