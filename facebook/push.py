@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from facebook.type import types,push
 from sql.pagePosts import PagePosts
 import json
+from helpers.image import copy_image_to_clipboard
 import requests
 from io import BytesIO
 from selenium.webdriver.common.action_chains import ActionChains
@@ -60,24 +61,14 @@ class Push:
             
             print('- Copy và dán hình ảnh')
             for src in images:
-                self.browser.execute_script("window.open('');")
-                self.browser.switch_to.window(self.browser.window_handles[1])
-                self.browser.get(src)
-                
-                # Di chuyển chuột đến giữa màn hình
-                screen_width, screen_height = pyautogui.size()
-                sleep(2)  # Chờ 2 giây 
-                pyautogui.moveTo(screen_width // 2, screen_height // 2, duration=1)
                 
                 sleep(1)
-                pyautogui.hotkey('ctrl', 'c')
+                # Copy hình ảnh vào clipboard
+                copy_image_to_clipboard(src)
                 sleep(2)
                 
-                pyautogui.hotkey('ctrl', 'w')
-                self.browser.switch_to.window(self.browser.window_handles[0])
-                sleep(1)
                 input_element.send_keys(Keys.CONTROL, 'v')
-                sleep(3)
+                sleep(2)
             sleep(5)
             
             print('Đăng bài')

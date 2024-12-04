@@ -119,7 +119,6 @@ def getData():
                 except KeyboardInterrupt:
                     account_instance.update_account(user['id'], {'status_login': 2})
                     print(f'Chương trình đã bị dừng!')
-                account_instance.update_account(user['id'], {'status_login': 2})
                 browser.execute_cdp_cmd("Network.clearBrowserCache", {}) # Xoá cache
             print('Đã duyệt qua danh sách tài khoản, chờ 5 phút để tiếp tục...')
             sleep(300)
