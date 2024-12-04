@@ -80,7 +80,7 @@ class Push:
             sleep(2)
             print('\n--------- Đăng bài thành công ---------\n')
         except Exception as e:
-            self.pagePosts_instance.update_data(up['id'],{'status': 1}) # 4 mới đúng
+            self.pagePosts_instance.update_data(up['id'],{'status': 4}) # 4 mới đúng
             print(f'Lỗi khi đăng bài viết: {e}')
         except KeyboardInterrupt:
             self.pagePosts_instance.update_data(up['id'],{'status': 1})
