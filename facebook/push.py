@@ -74,7 +74,6 @@ class Push:
             print('Đăng bài')
             parent_form = input_element.find_element(By.XPATH, "./ancestor::form")
             parent_form.submit()
-            self.pagePosts_instance.update_data(up['id'],{'status': 2}) # Cập nhật trạng thái đã đăng
             sleep(10)
             self.afterUp(up) # Lấy link bài viết vừa đăng
             sleep(2)
@@ -127,8 +126,7 @@ class Push:
                         print(f"Lỗi khi hover vào liên kết: {hover_error}")
             
             self.pagePosts_instance.update_data(up['id'], {'link_up': link_up})
-
         except Exception as e:
             print(f"Không tìm thấy bài viết vừa đăng! {e}")
-            return
+        self.pagePosts_instance.update_data(up['id'],{'status': 2}) # Cập nhật trạng thái đã đăng
         
