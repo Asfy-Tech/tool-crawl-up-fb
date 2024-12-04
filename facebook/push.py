@@ -57,14 +57,22 @@ class Push:
             images = media['images']
 
             sleep(1)
+            
             print('- Copy và dán hình ảnh')
             for src in images:
                 self.browser.execute_script("window.open('');")
                 self.browser.switch_to.window(self.browser.window_handles[1])
                 self.browser.get(src)
+                
+                # Di chuyển chuột đến giữa màn hình
+                screen_width, screen_height = pyautogui.size()
+                sleep(2)  # Chờ 2 giây 
+                pyautogui.moveTo(screen_width // 2, screen_height // 2, duration=1)
+                
                 sleep(1)
                 pyautogui.hotkey('ctrl', 'c')
                 sleep(2)
+                
                 pyautogui.hotkey('ctrl', 'w')
                 self.browser.switch_to.window(self.browser.window_handles[0])
                 sleep(1)
@@ -81,7 +89,7 @@ class Push:
             sleep(2)
             print('\n--------- Đăng bài thành công ---------\n')
         except Exception as e:
-            self.pagePosts_instance.update_data(up['id'],{'status': 4})
+            self.pagePosts_instance.update_data(up['id'],{'status': 1}) # 4 mới đúng
             print(f'Lỗi khi đăng bài viết: {e}')
         except KeyboardInterrupt:
             self.pagePosts_instance.update_data(up['id'],{'status': 1})
