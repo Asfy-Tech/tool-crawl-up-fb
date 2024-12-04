@@ -20,6 +20,8 @@ chrome_options.add_argument("--start-maximized")
 # chrome_options.add_argument("--disable-dev-shm-usage")
 
 service = Service('chromedriver.exe')
+browser = webdriver.Chrome(service=service, options=chrome_options) # Mở trình duyệt
+browser.get("https://facebook.com") # Mở facebook
 
 page_instance = Page()
 account_instance = Account()
@@ -31,9 +33,6 @@ def getData():
             accounts = account_instance.get_accounts({'in[]': [11]})['data']
             for user in accounts:
                 try:
-                    browser = webdriver.Chrome(service=service, options=chrome_options) # Mở trình duyệt
-                    browser.get("https://facebook.com") # Mở facebook
-                    
                     listPages = page_instance.get_pages({
                         'type_page': 2,
                         'user_id': user["id"],
@@ -70,7 +69,6 @@ def getData():
                         except Exception as e: 
                             account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
                             print(f"Lỗi khi set cookie: {str(e)}")
-                            browser.close()
                             continue                        
                         try:
                             browser.find_element(By.XPATH, types['form-logout'])
@@ -118,17 +116,15 @@ def getData():
                             browser.close()
                             sleep(60)  # Tạm dừng trước khi tiếp tục kiểm tra lại
                             continue
-                    browser.close()
                 except KeyboardInterrupt:
                     account_instance.update_account(user['id'], {'status_login': 2})
                     print(f'Chương trình đã bị dừng!')
-                    browser.close()
                 account_instance.update_account(user['id'], {'status_login': 2})
-                # browser.execute_cdp_cmd("Network.clearBrowserCache", {}) # Xoá cache
+                browser.execute_cdp_cmd("Network.clearBrowserCache", {}) # Xoá cache
             print('Đã duyệt qua danh sách tài khoản, chờ 5 phút để tiếp tục...')
             sleep(300)
         except Exception as e:
             print(f"Lỗi không mong muốn xảy ra: {str(e)}")
             break
 getData()
-
+browser.close()
