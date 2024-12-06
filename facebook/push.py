@@ -74,6 +74,12 @@ class Push:
             print('Đăng bài')
             parent_form = input_element.find_element(By.XPATH, "./ancestor::form")
             parent_form.submit()
+            try:
+                wait = WebDriverWait(self.browser, 10)
+                closeModel = wait.until(EC.presence_of_element_located((By.XPATH, '//*[@aria-label="Đóng"]')))
+                closeModel.click()
+            except: 
+                pass
             sleep(10)
             self.afterUp(up) # Lấy link bài viết vừa đăng
             sleep(2)

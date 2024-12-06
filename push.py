@@ -79,7 +79,8 @@ def getData():
                             browser.get(link)
                             
                             try:
-                                name_page = browser.find_element(By.XPATH, '//h1')
+                                name_pages = browser.find_elements(By.XPATH, '//h1')
+                                name_page = name_pages[-1]
                                 page_instance.update_page(page['id'],{'name': name_page.text})
                             except: 
                                 print('-> Không tìm thấy tên trang!')
