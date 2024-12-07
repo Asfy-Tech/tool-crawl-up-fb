@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from sql.posts import Post
 from sql.pages import Page
+from sql.errors import Error
 from sql.history_crawl_page_posts import HistoryCrawlPagePost
 from sql.history import HistoryCrawlPage
 from urllib.parse import urlparse, parse_qs
@@ -23,6 +24,7 @@ class Crawl:
         self.history_instance = HistoryCrawlPage()
         self.post_instance = Post()
         self.comment_instance = Comment()
+        self.error_instance = Error()
         self.history_crawl_page_post_instance = HistoryCrawlPagePost()
 
     def get(self):
@@ -272,9 +274,7 @@ class Crawl:
             self.history_crawl_page_post_instance.update(postLink['id'], {
                 'status':4,
             })
-            print(f"Lỗi xảy ra: {e}")
-            with open('logs/errors.log','a',encoding='utf-8') as file: 
-                file.write(f"[{current_time}]: {e} \n")
+            self.error_instance.insertContent(e)
         print("\n-----------------------------------------------------\n")
 
     def getInfoPage(self):
@@ -303,5 +303,6 @@ class Crawl:
                 print(f"Cập nhật (likes, followers, following) page: {self.page['id']}")
                 res = self.page_instance.update_page(self.page['id'],dataUpdatePage)
         except Exception as e:
+            self.error_instance.insertContent(e)
             print(e)
     

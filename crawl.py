@@ -7,6 +7,7 @@ from time import sleep
 from facebook.crawl import Crawl
 from sql.pages import Page
 from sql.accounts import Account
+from sql.errors import Error
 from sql.account_cookies import AccountCookies
 from sql.history import HistoryCrawlPage
 from datetime import datetime
@@ -29,6 +30,7 @@ page_instance = Page()
 account_instance = Account()
 history_instance = HistoryCrawlPage()
 account_cookies = AccountCookies()
+error_instance = Error()
 
 browser.get("https://facebook.com")
 
@@ -54,6 +56,7 @@ def getData():
                         browser.get('https://facebook.com')
                         sleep(1)
                     except Exception as e: 
+                        error_instance.insertContent(e)
                         account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
                         print(f"Lỗi khi set cookie: {str(e)}")
                     
@@ -99,7 +102,7 @@ def getData():
                             sleep(2)
                     except Exception as e:
                         print(f"=> Đăng nhập thất bại!")
-                        print(e)
+                        error_instance.insertContent(e)
                         account_cookies.update(last_cookie['id'],{'status': 1})  # Chuyển trạng thái cookie
                         account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
                         print("=> Chờ 60s để xử lý tiếp...")
@@ -115,6 +118,7 @@ def getData():
                 print("Không còn tài khoản nào để xử lý. Đợi 60 giây...")
                 sleep(60)  # Tạm dừng trước khi tiếp tục kiểm tra lại
         except Exception as e:
+            error_instance.insertContent(e)
             print(f"Lỗi không mong muốn xảy ra: {str(e)}")
             break;  # Thoát khỏi vòng lặp nếu gặp lỗi nghiêm trọng
 
