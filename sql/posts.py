@@ -10,5 +10,5 @@ class Post(Model):
     def find_post(self,id):
         return self.get(f"posts/{id}")
 
-    def get_none_post_ids(self, post_ids):
-        return self.post("posts/none", data={"ids": post_ids})
+    def get_none_post_ids(self, data):
+        return self.post("posts/none", data=data)

@@ -9,27 +9,34 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from sql.posts import Post
 from sql.pages import Page
+from sql.history_crawl_page_posts import HistoryCrawlPagePost
+from sql.history import HistoryCrawlPage
 from urllib.parse import urlparse, parse_qs
 from sql.comment import Comment 
 
 class Crawl:
-    def __init__(self, browser, page):
+    def __init__(self, browser, page, his):
         self.browser = browser
         self.page = page
+        self.his = his
         self.page_instance = Page()
+        self.history_instance = HistoryCrawlPage()
         self.post_instance = Post()
         self.comment_instance = Comment()
+        self.history_crawl_page_post_instance = HistoryCrawlPagePost()
 
     def get(self):
         self.browser.execute_script("document.body.style.zoom='0.2';")
         try:
-            name_page = self.browser.find_element(By.XPATH, '//h1')
-            print(f'Tên trang: {name_page.text.strip()}')
+            name_pages = self.browser.find_elements(By.XPATH, '//h1')
+            name_page = name_pages[-1]
             self.page_instance.update_page(self.page['id'],{'name': name_page.text.strip()})
-        except:
-            print('Không tìm thấy tên fanpage')
-            pass
-        
+        except: 
+            self.history_instance.update_history(self.his['id'],{
+                'status': 3,
+            })
+            print('-> Không tìm thấy tên trang!')
+            return
         
         sleep(5)
         print("Bắt đầu lấy dữ liệu!")
@@ -42,7 +49,6 @@ class Crawl:
         if len(listPosts) > 5:
             listPosts = listPosts[:5]
         print(f"Lấy được {len(listPosts)} bài viết")
-
         try:
             post_links = []
             actions = ActionChains(self.browser)
@@ -76,11 +82,12 @@ class Crawl:
                 if story_fbid not in post_ids:
                     post_ids.append(story_fbid)
         print(f"=> Lấy ra được {len(post_ids)} đường dẫn chi tiết")
+        self.history_instance.update_history(self.his['id'],{
+            'counts': len(post_ids),
+        })
         
-        new_post_ids = self.post_instance.get_none_post_ids(post_ids)
-        print(f"-> Lọc ra được {len(post_ids)} chưa tồn tại")
         new_post_links = []
-        for post_id in new_post_ids:
+        for post_id in post_ids:
             for link in post_links:
                 if post_id in link:
                     new_post_links.append({
@@ -88,15 +95,25 @@ class Crawl:
                         'link': link
                     })
                     
-        if new_post_links:
-            for post in new_post_links:
+        new_post_check_ids = self.post_instance.get_none_post_ids({
+            'links':new_post_links,
+            'his_id': self.his['id']
+        })
+        print(f"-> Lọc ra được {len(new_post_check_ids)} chưa tồn tại")
+                    
+        if new_post_check_ids:
+            for postLink in new_post_check_ids:
                 sleep(1)
-                self.crawlPost(post)
+                self.crawlPost(postLink)
 
     def crawlPost(self, postLink):
+        # Cập nhật trạng thái đang lấy
+        self.history_crawl_page_post_instance.update(postLink['id'], {
+            'status':2,
+        })
         data = {
-            'post_id': postLink["id"],
-            'link_facebook': postLink['link'],
+            'post_id': postLink["post_fb_id"],
+            'link_facebook': postLink['post_fb_link'],
             'page_id': self.page['id'],
             'content': '',
             'media' : {
@@ -109,10 +126,10 @@ class Crawl:
             'up': False,
         }
         dataComment = []
-        self.browser.get(f"{postLink['link']}")
-        print(f"- Chuyển hướng tới: {postLink['link']}")
+        self.browser.get(f"{postLink['post_fb_link']}")
+        print(f"- Chuyển hướng tới: {postLink['post_fb_link']}")
         sleep(5)
-        print(f"Bắt đầu lấy dữ liệu bài viết: {postLink['id']}")
+        print(f"Bắt đầu lấy dữ liệu bài viết: {postLink['post_fb_id']}")
         
         modal = None
         for modalXPath in types['modal']:
@@ -227,7 +244,7 @@ class Crawl:
 
                 countComment += 1
                 dataComment.append({
-                    'post_id': postLink["id"],
+                    'post_id': postLink["post_fb_id"],
                     'user_name': user_name,
                     'content': textContentComment
                 })
@@ -235,9 +252,9 @@ class Crawl:
         except Exception as e:
             print("Không lấy được bình luận!")
 
-        self.insertPostAndComment(data,dataComment, postLink["link"])
+        self.insertPostAndComment(data,dataComment, postLink)
         
-    def insertPostAndComment(self, data, dataComment, link):
+    def insertPostAndComment(self, data, dataComment, postLink):
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             print("Đang lưu bài viết và bình luận vào database...")
@@ -245,9 +262,16 @@ class Crawl:
                 'post' : data,
                 'comments': dataComment
             })
+            self.history_crawl_page_post_instance.update(postLink['id'], {
+                'status':3,
+                'post_id': res['post_id']
+            })
             print(f"Response: {res}")
             print("=> Đã lưu thành công!")
         except Exception as e:
+            self.history_crawl_page_post_instance.update(postLink['id'], {
+                'status':4,
+            })
             print(f"Lỗi xảy ra: {e}")
             with open('logs/errors.log','a',encoding='utf-8') as file: 
                 file.write(f"[{current_time}]: {e} \n")
