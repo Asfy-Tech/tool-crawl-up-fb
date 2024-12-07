@@ -84,18 +84,21 @@ class Crawl:
                 if story_fbid not in post_ids:
                     post_ids.append(story_fbid)
         print(f"=> Lấy ra được {len(post_ids)} đường dẫn chi tiết")
+        
         self.history_instance.update_history(self.his['id'],{
             'counts': len(post_ids),
         })
         
         new_post_links = []
+        seen_ids = set()
         for post_id in post_ids:
             for link in post_links:
-                if post_id in link:
+                if post_id in link and post_id not in seen_ids:
                     new_post_links.append({
                         'id': post_id,
                         'link': link
                     })
+                    seen_ids.add(post_id)
                     
         new_post_check_ids = self.post_instance.get_none_post_ids({
             'links':new_post_links,
@@ -272,8 +275,6 @@ class Crawl:
                     })
             except:
                 self.error_instance.insertContent(e)
-                
-            sleep(1000)
             print("=> Đã lưu thành công!")
         except Exception as e:
             self.history_crawl_page_post_instance.update(postLink['id'], {
