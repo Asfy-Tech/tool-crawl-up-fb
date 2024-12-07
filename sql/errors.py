@@ -1,5 +1,5 @@
 from sql.model import Model
-
+import traceback
 class Error(Model):
     def __init__(self):
         super().__init__()
@@ -7,9 +7,15 @@ class Error(Model):
     def insert(self, data):
         return self.post("errors", data=data)
     
-    def insertContent(self, content):
+    def insertContent(self, e):
+        content = {
+            "error_message": str(e),  # Lấy thông báo lỗi dạng chuỗi
+            "error_type": type(e).__name__,  # Lấy tên loại lỗi (vd: TypeError)
+            "traceback": traceback.format_exc()  # Ngữ cảnh lỗi đầy đủ (tuỳ chọn)
+        }
+        # Insert vào database
         return self.insert({
-            'content' : content
+            'content': str(content)  # Lưu dạng chuỗi
         })
     
     def update(self, history_id, data):

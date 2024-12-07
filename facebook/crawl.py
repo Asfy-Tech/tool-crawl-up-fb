@@ -257,18 +257,23 @@ class Crawl:
         self.insertPostAndComment(data,dataComment, postLink)
         
     def insertPostAndComment(self, data, dataComment, postLink):
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             print("Đang lưu bài viết và bình luận vào database...")
             res = self.post_instance.insert_post({
                 'post' : data,
                 'comments': dataComment
             })
-            self.history_crawl_page_post_instance.update(postLink['id'], {
-                'status':3,
-                'post_id': res['post_id']
-            })
             print(f"Response: {res}")
+            try:
+                if res['post_id']:
+                    self.history_crawl_page_post_instance.update(postLink['id'], {
+                        'status':3,
+                        'post_id': res['post_id']
+                    })
+            except:
+                self.error_instance.insertContent(e)
+                
+            sleep(1000)
             print("=> Đã lưu thành công!")
         except Exception as e:
             self.history_crawl_page_post_instance.update(postLink['id'], {
