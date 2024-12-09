@@ -283,6 +283,11 @@ class Crawl:
             })
             self.history_instance.update_count(self.his['id'],{'type': 'count_error'})
             self.error_instance.insertContent(e)
+        except KeyboardInterrupt:
+            self.history_crawl_page_post_instance.update(postLink['id'], {
+                'status':4,
+            })
+            self.history_instance.update_count(self.his['id'],{'type': 'count_error'})
         print("\n-----------------------------------------------------\n")
 
     def getInfoPage(self):
@@ -312,5 +317,9 @@ class Crawl:
                 res = self.page_instance.update_page(self.page['id'],dataUpdatePage)
         except Exception as e:
             self.error_instance.insertContent(e)
-            print(e)
+        except KeyboardInterrupt:
+            res = self.history_instance.update_history(self.his['id'], {
+                'status': 4,
+            })
+            print(f'Update status 4: {res}')
     

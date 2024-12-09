@@ -91,7 +91,7 @@ def getData():
                                 page_instance.update_time(page['id'])
                                 if his:
                                     res = history_instance.update_history(his['id'], {
-                                        'status': 2,
+                                        'status': 3,
                                     })
                                     print(f'Update status 2: {res}')
                                 print(f'Chương trình đã bị dừng!')
