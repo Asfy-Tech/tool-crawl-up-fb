@@ -9,3 +9,6 @@ class HistoryCrawlPage(Model):
     
     def update_history(self, history_id, data):
             return self.put(f"history-crawl-page/{history_id}", data=data)
+        
+    def update_count(self, history_id, data):
+        return self.post(f"history-crawl-update-count/{history_id}", data=data)

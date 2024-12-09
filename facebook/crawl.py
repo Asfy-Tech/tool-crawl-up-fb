@@ -273,6 +273,7 @@ class Crawl:
                         'status':3,
                         'post_id': res['post_id']
                     })
+                    res = self.history_instance.update_count(self.his['id'],{'type': 'count_get'})
             except:
                 self.error_instance.insertContent(e)
             print("=> Đã lưu thành công!")
@@ -280,6 +281,7 @@ class Crawl:
             self.history_crawl_page_post_instance.update(postLink['id'], {
                 'status':4,
             })
+            self.history_instance.update_count(self.his['id'],{'type': 'count_error'})
             self.error_instance.insertContent(e)
         print("\n-----------------------------------------------------\n")
 

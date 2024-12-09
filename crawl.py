@@ -72,6 +72,7 @@ def getData():
                             'order': 'updated_at',
                             'sort': 'asc',
                         })['data']
+                        
                         if not listPages:
                             print(f"Không lấy được page nào")
                             continue
