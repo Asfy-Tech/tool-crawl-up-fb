@@ -90,9 +90,10 @@ def getData():
                             except KeyboardInterrupt:
                                 page_instance.update_time(page['id'])
                                 if his:
-                                    history_instance.update_history(his['id'], {
+                                    res = history_instance.update_history(his['id'], {
                                         'status': 2,
                                     })
+                                    print(f'Update status 2: {res}')
                                 print(f'Chương trình đã bị dừng!')
                                 
                             page_instance.update_time(page['id'])
