@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from facebook.type import types,push
 from sql.pagePosts import PagePosts
 from sql.pages import Page
+from sql.errors import Error
 import json
 from helpers.image import copy_image_to_clipboard
 import requests
@@ -22,6 +23,7 @@ class Push:
         self.listPageUps = listPageUps
         self.post_instance = Post()
         self.page_instance = Page()
+        self.error_instance = Error()
         self.pagePosts_instance = PagePosts()
         
     def handle(self):
@@ -141,6 +143,7 @@ class Push:
             sleep(2)
             print('\n--------- Đăng bài thành công ---------\n')
         except Exception as e:
+            self.error_instance.insertContent(e)
             self.pagePosts_instance.update_data(up['id'],{'status': 4}) # 4 Cập nhật trạng thái lỗi khi đăng
             print(f'Lỗi khi đăng bài viết: {e}')
         except KeyboardInterrupt:
@@ -182,6 +185,7 @@ class Push:
             
             self.pagePosts_instance.update_data(up['id'], {'link_up': link_up})
         except Exception as e:
+            self.error_instance.insertContent(e)
             print(f"Không tìm thấy bài viết vừa đăng! {e}")
         self.pagePosts_instance.update_data(up['id'],{'status': 2}) # Cập nhật trạng thái đã đăng
         

@@ -106,7 +106,7 @@ def getData():
                     push_instance.handle()
                     account_instance.update_account(user['id'], {'status_login': 2})  # Chuyển trạng thái chết cookie
                 except Exception as e:
-                    print(e)
+                    error_instance.insertContent(e)
                     print(f"=> Đăng nhập thất bại!")
                     account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
                     browser.close()
@@ -120,6 +120,7 @@ def getData():
             print('Đã duyệt qua danh sách tài khoản, chờ 10 phút để tiếp tục...')
             sleep(600)
         except Exception as e:
+            error_instance.insertContent(e)
             print(f"Lỗi không mong muốn xảy ra: {str(e)}")
             break
 getData()
