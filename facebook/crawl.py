@@ -208,6 +208,7 @@ class Crawl:
         try:
             comments = modal.find_elements(By.XPATH, types['comments'])
             print(f"Lấy được: {len(comments)} bình luận!")
+            
             # Click vào các từ xem thêm
             for cm in comments:
                 try:
@@ -221,12 +222,27 @@ class Crawl:
                 if countComment >= 10:
                     break
                 textComment = ''
+                link_comment = []
                 try:
                     div_elements = cm.find_elements(By.XPATH, './div')[1]
                     div_2 = div_elements.find_elements(By.XPATH, './div')
+                    
+                    
                     if not div_2 or not div_2[0]: 
                         continue
                     textComment = div_2[0].text
+                                    
+                    if div_2 and div_2[1]:
+                        try:
+                            a_tags = div_2[1].find_elements(By.XPATH, './/a')
+                            for a in a_tags:
+                                href = a.get_attribute('href')
+                                if href and 'facebook.com' not in href:  # Lấy href không chứa 'facebook.com'
+                                    link_comment.append(href)
+                        except IndexError:
+                            pass
+                        except Exception as e:
+                            print(f"Lỗi không xác định: {e}")
                 except:
                     countComment += 1
                     pass
@@ -251,10 +267,12 @@ class Crawl:
                 dataComment.append({
                     'post_id': postLink["post_fb_id"],
                     'user_name': user_name,
-                    'content': textContentComment
+                    'content': textContentComment,
+                    'link_comment': link_comment,
                 })
-            print(f"=> Lưu được {len(countComment)} bình luận!")
+            print(f"=> Lưu được {len(dataComment)} bình luận!")
         except Exception as e:
+            print(e)
             print("Không lấy được bình luận!")
 
         self.insertPostAndComment(data,dataComment, postLink)
@@ -262,6 +280,7 @@ class Crawl:
     def insertPostAndComment(self, data, dataComment, postLink):
         try:
             print("Đang lưu bài viết và bình luận vào database...")
+            print(dataComment)
             res = self.post_instance.insert_post({
                 'post' : data,
                 'comments': dataComment
@@ -278,11 +297,11 @@ class Crawl:
                 self.error_instance.insertContent(e)
             print("=> Đã lưu thành công!")
         except Exception as e:
+            self.error_instance.insertContent(e)
             self.history_crawl_page_post_instance.update(postLink['id'], {
                 'status':4,
             })
             self.history_instance.update_count(self.his['id'],{'type': 'count_error'})
-            self.error_instance.insertContent(e)
         except KeyboardInterrupt:
             self.history_crawl_page_post_instance.update(postLink['id'], {
                 'status':4,
