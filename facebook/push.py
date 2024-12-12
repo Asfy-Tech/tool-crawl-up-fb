@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from facebook.type import types,push
 from sql.pagePosts import PagePosts
 from sql.pages import Page
+from helpers.modal import closeModal
 from sql.errors import Error
 import json
 from helpers.image import copy_image_to_clipboard
@@ -71,6 +72,8 @@ class Push:
                 
     def up(self, listUp):
         for up in listUp['list_up']:
+            self.browser.get(listUp['link'])
+            sleep(1)
             self.push(listUp,up)
             sleep(2)
         sleep(10)
@@ -127,18 +130,8 @@ class Push:
             print('Đăng bài')
             parent_form = input_element.find_element(By.XPATH, "./ancestor::form")
             parent_form.submit()
-            try:
-                sleep(10)
-                closeModels = self.browser.find_elements(By.XPATH, '//*[@aria-label="Đóng"]') # Đóng thông báo nếu có
-                if len(closeModels) > 1:
-                    closeModel = closeModels[1]  # Lấy phần tử thứ hai
-                    if closeModel.is_displayed() and closeModel.is_enabled():  # Kiểm tra hiển thị
-                        closeModel.click()
-                    else:
-                        print("Phần tử không sẵn sàng để nhấp.")
-            except Exception as e:
-                pass
-        
+            sleep(10)
+            closeModal(1,self.browser)
             sleep(10)
             self.afterUp(page,up) # Lấy link bài viết vừa đăng
             sleep(2)
@@ -189,5 +182,8 @@ class Push:
             self.error_instance.insertContent(e)
             print(f"Không tìm thấy bài viết vừa đăng! {e}")
         self.pagePosts_instance.update_data(up['id'],{'status': 2}) # Cập nhật trạng thái đã đăng
+        sleep(1)
+        self.browser.get('https://facebook.com')
+        sleep(2)
         
     
