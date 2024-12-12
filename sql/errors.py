@@ -14,9 +14,10 @@ class Error(Model):
             "traceback": traceback.format_exc()  # Ngữ cảnh lỗi đầy đủ (tuỳ chọn)
         }
         # Insert vào database
-        return self.insert({
+        self.insert({
             'content': str(content)  # Lưu dạng chuỗi
         })
+        return str(content)
     
     def update(self, history_id, data):
         return self.put(f"errors/{history_id}", data=data)

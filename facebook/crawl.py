@@ -306,9 +306,10 @@ class Crawl:
                 self.error_instance.insertContent(e)
             print("=> Đã lưu thành công!")
         except Exception as e:
-            self.error_instance.insertContent(e)
+            error = self.error_instance.insertContent(e)
             self.history_crawl_page_post_instance.update(postLink['id'], {
                 'status':4,
+                'error': error
             })
             self.history_instance.update_count(self.his['id'],{'type': 'count_error'})
         except KeyboardInterrupt:
