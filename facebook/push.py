@@ -149,12 +149,12 @@ class Push:
         sleep(2)
         pageLinkPost = f"{page['link']}/posts/"
         pageLinkStory = "https://www.facebook.com/permalink.php"
+        link_up = ''
         try:
             # Chờ modal xuất hiện
             modal = WebDriverWait(self.browser, 10).until(
                 EC.presence_of_element_located((By.XPATH, '//*[@aria-posinset="1"]'))
             )
-            link_up = ''
             actions = ActionChains(self.browser)
             # Chờ các liên kết bên trong modal
             links = WebDriverWait(self.browser, 10).until(
@@ -176,12 +176,11 @@ class Push:
                                 
                     except Exception as hover_error:
                         print(f"Lỗi khi hover vào liên kết: {hover_error}")
-            
-            self.pagePosts_instance.update_data(up['id'], {'link_up': link_up})
         except Exception as e:
             self.error_instance.insertContent(e)
             print(f"Không tìm thấy bài viết vừa đăng! {e}")
-        self.pagePosts_instance.update_data(up['id'],{'status': 2}) # Cập nhật trạng thái đã đăng
+        res = self.pagePosts_instance.update_data(up['id'],{'status': 2,'link_up': link_up}) # Cập nhật trạng thái đã đăng
+        print(res)
         sleep(1)
         self.browser.get('https://facebook.com')
         sleep(2)
