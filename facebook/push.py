@@ -18,9 +18,10 @@ from PIL import Image
 
 
 class Push:
-    def __init__(self,browser,listPageUps):
+    def __init__(self,browser,listPageUps, last_cookie):
         self.browser = browser
         self.listPageUps = listPageUps
+        self.last_cookie = last_cookie
         self.post_instance = Post()
         self.page_instance = Page()
         self.error_instance = Error()
@@ -77,7 +78,7 @@ class Push:
     def push(self,page, up):
         post_id = up['post_id']
         try:
-            self.pagePosts_instance.update_data(up['id'],{'status': 3}) #Cập nhật trạng thái đang thực thi
+            self.pagePosts_instance.update_data(up['id'],{'status': 3, 'cookie_id': self.last_cookie['id']}) #Cập nhật trạng thái đang thực thi
             post = self.post_instance.find_post(post_id) #Tìm thông tin bài viết
             
             # Check bài viết

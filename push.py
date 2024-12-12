@@ -102,7 +102,7 @@ def getData():
                 try:
                     browser.find_element(By.XPATH, types['form-logout'])
                     print(f"=> Đăng nhập thành công!, Đang xử lý đăng bài...")
-                    push_instance = Push(browser, listPageUps)
+                    push_instance = Push(browser, listPageUps, last_cookie)
                     push_instance.handle()
                     account_instance.update_account(user['id'], {'status_login': 2})  # Chuyển trạng thái chết cookie
                 except Exception as e:
