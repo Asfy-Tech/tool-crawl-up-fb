@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 import json
 from sql.pages import Page
 from sql.accounts import Account
+from sql.errors import Error
 from sql.pagePosts import PagePosts
 
 chrome_options = webdriver.ChromeOptions()
@@ -20,111 +21,105 @@ chrome_options.add_argument("--start-maximized")
 # chrome_options.add_argument("--disable-dev-shm-usage")
 
 service = Service('chromedriver.exe')
-browser = webdriver.Chrome(service=service, options=chrome_options) # Mở trình duyệt
-browser.get("https://facebook.com") # Mở facebook
+
 
 page_instance = Page()
 account_instance = Account()
+error_instance = Error()
 pagePosts_instance = PagePosts()
 
 def getData():
     while True:  
         try:
-            accounts = account_instance.get_accounts({'in[]': [11]})['data']
-            for user in accounts:
+            accounts = account_instance.get_accounts({'in[]': [11]})['data'] # Lấy ra danh sách tài khoản từ database
+            for user in accounts: # Lặp qua danh sách tài khoản
+                listPageUps = []
                 try:
                     listPages = page_instance.get_pages({
                         'type_page': 2,
                         'user_id': user["id"],
                         'order': 'updated_at',
                         'sort': 'asc',
-                    })['data']
+                    })['data'] # Lấy ra danh sách page thuộc tài khoản đó
                     if not listPages:
-                        print(f"Tài khoản {user['name']} không quản lý page nào")
+                        print(f"Tài khoản {user['name']} không quản lý page nào") # Tại khoản k quản lý page nào => next
                         continue
                     
                     print(f"Lấy được: {len(listPages)} fanpage từ database")
-                    for page in listPages:
+                    for page in listPages: # Lặp qua danh sách fanpage khoản lấy được
                         listUp = pagePosts_instance.get_list({
                             'page_id': page['id'],
                             'status': 1,
                             'show_all': True,
-                        })['data']
+                        })['data'] # Lấy danh sách page cần đăng của tài khoản đó
                         if len(listUp) <= 0:
-                            print(f"=>Page {page['name']} không có bài nào cần đăng")
+                            print(f"=>Page {page['name']} không có bài nào cần đăng") # Page nào k có bài cần đăng thì next
                             continue
                         
                         print(f"=>Page {page['name']} có {len(listUp)} bài cần đăng")
-                        
-                        print(f"Đăng nhập vào tài khoản: {user['name']}")
-                        cookies = json.loads(user['cookie'])
-                        account_instance.update_account(user['id'], {'status_login': 4}) # Chuyển trạng thái thành đang lấy dữ liệu
-                        try:
-                            # Thêm từng cookie vào trình duyệt
-                            for cookie in cookies:
-                                browser.add_cookie(cookie)
-                            sleep(1)
-                            browser.get('https://facebook.com')
-                            sleep(1)
-                        except Exception as e: 
-                            account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
-                            print(f"Lỗi khi set cookie: {str(e)}")
-                            continue                        
-                        try:
-                            browser.find_element(By.XPATH, types['form-logout'])
-                            print(f"=> Đăng nhập thành công!")
-                            
-                            link = page['link']
-                            print(f"Chuyển hướng tới: {link}")
-                            browser.get(link)
-                            
-                            try:
-                                name_pages = browser.find_elements(By.XPATH, '//h1')
-                                name_page = name_pages[-1]
-                                page_instance.update_page(page['id'],{'name': name_page.text})
-                            except: 
-                                print('-> Không tìm thấy tên trang!')
-                                continue
-                            
-                            sleep(1)
-                            
-                            print('-> Mở popup thông tin cá nhân!')
-                            profile_button = browser.find_element(By.XPATH, push['openProfile'])
-                            profile_button.click()
-                            
-                            sleep(1)
-                            
-                            try:
-                                switchPage = browser.find_element(By.XPATH, push['switchPage'](name_page.text.strip()))
-                                switchPage.click()
-                            except Exception as e:
-                                print("-> Không tìm thấy nút chuyển hướng tới trang quản trị!")
-                            
-                            sleep(1)
-                            if not listUp:
-                                print(f"Page này không có bài viết nào cần đăng!")
-                                continue
-                            
-                            for up in listUp:
-                                push_instance = Push(browser, page)
-                                push_instance.up(up)
-                                sleep(2)   
-                            sleep(10)
-                        except Exception as e:
-                            print(f"=> Đăng nhập thất bại!")
-                            account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
-                            print("=> Chờ 60s để xử lý tiếp...")
-                            sleep(60)  # Tạm dừng trước khi tiếp tục kiểm tra lại
-                            continue
+                        pageUp = page
+                        pageUp['list_up'] = listUp
+                        listPageUps.append(pageUp)
+                        page_instance.update_time(page['id'])
+                        sleep(1)
                     account_instance.update_account(user['id'], {'status_login': 2})
                 except KeyboardInterrupt:
                     account_instance.update_account(user['id'], {'status_login': 2})
                     print(f'Chương trình đã bị dừng!')
-                browser.execute_cdp_cmd("Network.clearBrowserCache", {}) # Xoá cache
-            print('Đã duyệt qua danh sách tài khoản, chờ 5 phút để tiếp tục...')
-            sleep(300)
+                    
+                if len(listPageUps) <= 0:
+                    print(f"Tài khoản: {user['name']} không có bài viết nào cần đăng!")    
+                    sleep(3)
+                    continue
+            
+                print(f"Lấy được: {len(listPageUps)} bài")
+                sleep(1)
+                print(f"Đăng nhập vào tài khoản: {user['name']}")
+                if not user['latest_cookie']:
+                    account_instance.update_account(user['id'], {'status_login': 1}) # Chuyển trạng thái chết cookie
+                    continue
+                    
+                browser = webdriver.Chrome(service=service, options=chrome_options) # Mở trình duyệt
+                browser.get("https://facebook.com") # Mở facebook   
+                
+                
+                last_cookie = user['latest_cookie']
+                cookies = json.loads(last_cookie['cookies'])
+                account_instance.update_account(user['id'], {'status_login': 4}) # Chuyển trạng thái thành đang đăng bài
+                try:
+                    # Thêm từng cookie vào trình duyệt
+                    for cookie in cookies:
+                        browser.add_cookie(cookie)
+                    sleep(1)
+                    browser.get('https://facebook.com')
+                    sleep(1)
+                except Exception as e: 
+                    error_instance.insertContent(e)
+                    account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
+                    browser.close()
+                    print(f"Lỗi khi set cookie: {str(e)}")
+                
+                try:
+                    browser.find_element(By.XPATH, types['form-logout'])
+                    print(f"=> Đăng nhập thành công!, Đang xử lý đăng bài...")
+                    push_instance = Push(browser, listPageUps)
+                    push_instance.handle()
+                    account_instance.update_account(user['id'], {'status_login': 2})  # Chuyển trạng thái chết cookie
+                except Exception as e:
+                    print(e)
+                    print(f"=> Đăng nhập thất bại!")
+                    account_instance.update_account(user['id'], {'status_login': 1})  # Chuyển trạng thái chết cookie
+                    browser.close()
+                    print("=> Chờ 60s để xử lý tiếp...")
+                    sleep(60)  # Tạm dừng trước khi tiếp tục kiểm tra lại
+                    continue  
+            
+                print(f'Đã duyệt xong tài khoản {user["name"]}, chờ 60s để tiếp tục...')
+                sleep(60)     
+                
+            print('Đã duyệt qua danh sách tài khoản, chờ 10 phút để tiếp tục...')
+            sleep(600)
         except Exception as e:
             print(f"Lỗi không mong muốn xảy ra: {str(e)}")
             break
 getData()
-browser.close()

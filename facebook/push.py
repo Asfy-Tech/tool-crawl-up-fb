@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from facebook.type import types,push
 from sql.pagePosts import PagePosts
+from sql.pages import Page
 import json
 from helpers.image import copy_image_to_clipboard
 import requests
@@ -16,21 +17,70 @@ from PIL import Image
 
 
 class Push:
-    def __init__(self,browser,page):
+    def __init__(self,browser,listPageUps):
         self.browser = browser
-        self.page = page
+        self.listPageUps = listPageUps
         self.post_instance = Post()
+        self.page_instance = Page()
         self.pagePosts_instance = PagePosts()
         
-    def up(self, up):
+    def handle(self):
+        for pageUp in self.listPageUps:
+            link = pageUp['link']
+            print(f"Chuyển hướng tới: {link}")
+            self.browser.get(link)
+            name = self.updateName(pageUp) #Cập nhật tên fanpage
+            if name == '':
+                continue
+            sleep(1)
+            self.showPage(name) # Show ra fanpage
+            sleep(1)
+            self.up(pageUp) # Thực hiện up dứ liệu
+            print(f'Đã đăng xong page: {pageUp["id"]}, chờ 10s để tiếp tục...')
+            sleep(10)
+        sleep(5)
+        self.browser.close()
+                
+    def updateName(self, pageUp):
+        name = ''
+        try:
+            name_pages = self.browser.find_elements(By.XPATH, '//h1')
+            name_page = name_pages[-1]
+            self.page_instance.update_page(pageUp['id'],{'name': name_page.text.strip()})
+            name  = name_page.text.strip()
+        except: 
+            print('-> Không tìm thấy tên trang!')
+        return name
+        
+    def showPage(self, name):
+        print('-> Mở popup thông tin cá nhân!')
+        profile_button = self.browser.find_element(By.XPATH, push['openProfile'])
+        profile_button.click()
+        sleep(1)
+            
+        try:
+            switchPage = self.browser.find_element(By.XPATH, push['switchPage'](name))
+            switchPage.click()
+        except Exception as e:
+            print("-> Không tìm thấy nút chuyển hướng tới trang quản trị!")
+        
+        sleep(1)
+                
+    def up(self, listUp):
+        for up in listUp['list_up']:
+            self.push(listUp,up)
+            sleep(2)
+        sleep(10)
+        
+    def push(self,page, up):
         post_id = up['post_id']
         try:
-            self.pagePosts_instance.update_data(up['id'],{'status': 3})
-            post = self.post_instance.find_post(post_id)
+            self.pagePosts_instance.update_data(up['id'],{'status': 3}) #Cập nhật trạng thái đang thực thi
+            post = self.post_instance.find_post(post_id) #Tìm thông tin bài viết
             
             # Check bài viết
             if not post['id']:
-                print(f'Không tìm thầy bài viết có id {post_id} trong csdl')
+                print(f'Không tìm thầy bài viết có id {post_id} trong csdl') # Không tìm thấy bài viết
                 return
             
             print('==> Bắt đầu đăng bài')
@@ -44,7 +94,7 @@ class Push:
                     continue
                 
             if not createPost:
-                self.pagePosts_instance.update_data(up['id'],{'status': 4})
+                self.pagePosts_instance.update_data(up['id'],{'status': 4}) # Cập nhật trạng thái đã xảy ra lỗi
                 print("Không tìm thấy nút tạo bài viết!")
                 return
             
@@ -76,7 +126,7 @@ class Push:
             parent_form.submit()
             try:
                 sleep(10)
-                closeModels = self.browser.find_elements(By.XPATH, '//*[@aria-label="Đóng"]')
+                closeModels = self.browser.find_elements(By.XPATH, '//*[@aria-label="Đóng"]') # Đóng thông báo nếu có
                 if len(closeModels) > 1:
                     closeModel = closeModels[1]  # Lấy phần tử thứ hai
                     if closeModel.is_displayed() and closeModel.is_enabled():  # Kiểm tra hiển thị
@@ -87,39 +137,32 @@ class Push:
                 pass
         
             sleep(10)
-            self.afterUp(up) # Lấy link bài viết vừa đăng
+            self.afterUp(page,up) # Lấy link bài viết vừa đăng
             sleep(2)
             print('\n--------- Đăng bài thành công ---------\n')
         except Exception as e:
-            self.pagePosts_instance.update_data(up['id'],{'status': 4}) # 4 mới đúng
+            self.pagePosts_instance.update_data(up['id'],{'status': 4}) # 4 Cập nhật trạng thái lỗi khi đăng
             print(f'Lỗi khi đăng bài viết: {e}')
         except KeyboardInterrupt:
-            self.pagePosts_instance.update_data(up['id'],{'status': 1})
+            self.pagePosts_instance.update_data(up['id'],{'status': 4})  # 4 Cập nhật trạng thái lỗi khi đăng
             print(f'Chương trình đã bị dừng!')
     
-    def afterUp(self, up):
-        
-        self.browser.get(self.page['link'])
-        
+    def afterUp(self,page, up):
+        self.browser.get(page['link'])
         sleep(2)
-        
-        pageLinkPost = f"{self.page['link']}/posts/"
+        pageLinkPost = f"{page['link']}/posts/"
         pageLinkStory = "https://www.facebook.com/permalink.php"
-        
         try:
             # Chờ modal xuất hiện
             modal = WebDriverWait(self.browser, 10).until(
                 EC.presence_of_element_located((By.XPATH, '//*[@aria-posinset="1"]'))
             )
-            
             link_up = ''
             actions = ActionChains(self.browser)
-            
             # Chờ các liên kết bên trong modal
             links = WebDriverWait(self.browser, 10).until(
                 lambda browser: modal.find_elements(By.XPATH, ".//a")
             )
-            
             for link in links:
                 # Kiểm tra nếu phần tử có kích thước hiển thị
                 if link.size['width'] > 0 and link.size['height'] > 0:
@@ -142,3 +185,4 @@ class Push:
             print(f"Không tìm thấy bài viết vừa đăng! {e}")
         self.pagePosts_instance.update_data(up['id'],{'status': 2}) # Cập nhật trạng thái đã đăng
         
+    
