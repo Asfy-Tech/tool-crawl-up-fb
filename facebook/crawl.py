@@ -4,6 +4,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from time import sleep
 import json
+from helpers.modal import closeModal
 from datetime import datetime
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -28,6 +29,8 @@ class Crawl:
         self.history_crawl_page_post_instance = HistoryCrawlPagePost()
 
     def get(self):
+        sleep(1)
+        closeModal(0, self.browser)
         self.browser.execute_script("document.body.style.zoom='0.2';")
         try:
             name_pages = self.browser.find_elements(By.XPATH, '//h1')
@@ -83,6 +86,7 @@ class Crawl:
                 story_fbid = query_params.get('story_fbid', [None])[0]
                 if story_fbid not in post_ids:
                     post_ids.append(story_fbid)
+                    
         print(f"=> Lấy ra được {len(post_ids)} đường dẫn chi tiết")
         
         self.history_instance.update_history(self.his['id'],{
@@ -134,6 +138,7 @@ class Crawl:
         self.browser.get(f"{postLink['post_fb_link']}")
         print(f"- Chuyển hướng tới: {postLink['post_fb_link']}")
         sleep(5)
+        
         print(f"Bắt đầu lấy dữ liệu bài viết: {postLink['post_fb_id']}")
         
         modal = None
@@ -146,8 +151,13 @@ class Crawl:
                 continue
         if not modal:
             print('Không lấy được thấy bài viết!')    
-        
-        # Lấy nội dung
+        else:
+            aria_posinset = modal.get_attribute("aria-posinset")
+            if aria_posinset is not None:
+                closeModal(0, self.browser)
+            else:
+                closeModal(1, self.browser)
+                
         try:
             content = modal.find_element(By.XPATH, types['content'])
             contentText = content.text
@@ -280,7 +290,6 @@ class Crawl:
     def insertPostAndComment(self, data, dataComment, postLink):
         try:
             print("Đang lưu bài viết và bình luận vào database...")
-            print(dataComment)
             res = self.post_instance.insert_post({
                 'post' : data,
                 'comments': dataComment
