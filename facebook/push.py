@@ -72,6 +72,7 @@ class Push:
                 
     def up(self, listUp):
         for up in listUp['list_up']:
+            self.pagePosts_instance.update_data(up['id'],{'status': 3, 'cookie_id': self.last_cookie['id']}) #Cập nhật trạng thái đang thực thi
             self.browser.get(listUp['link'])
             sleep(1)
             self.push(listUp,up)
@@ -81,12 +82,11 @@ class Push:
     def push(self,page, up):
         post_id = up['post_id']
         try:
-            self.pagePosts_instance.update_data(up['id'],{'status': 3, 'cookie_id': self.last_cookie['id']}) #Cập nhật trạng thái đang thực thi
             post = self.post_instance.find_post(post_id) #Tìm thông tin bài viết
-            
             # Check bài viết
             if not post['id']:
                 print(f'Không tìm thầy bài viết có id {post_id} trong csdl') # Không tìm thấy bài viết
+                self.pagePosts_instance.update_data(up['id'],{'status': 4}) #Cập nhật trạng thái đang thực thi
                 return
             
             print('==> Bắt đầu đăng bài')
@@ -179,8 +179,7 @@ class Push:
         except Exception as e:
             self.error_instance.insertContent(e)
             print(f"Không tìm thấy bài viết vừa đăng! {e}")
-        res = self.pagePosts_instance.update_data(up['id'],{'status': 2,'link_up': link_up}) # Cập nhật trạng thái đã đăng
-        print(res)
+        self.pagePosts_instance.update_data(up['id'],{'status': 2,'link_up': link_up}) # Cập nhật trạng thái đã đăng
         sleep(1)
         self.browser.get('https://facebook.com')
         sleep(2)
