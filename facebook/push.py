@@ -104,7 +104,12 @@ class Push:
                 print("Không tìm thấy nút tạo bài viết!")
                 return
             
-            createPost.click()
+            try:
+                createPost.click()
+            except:
+                self.pagePosts_instance.update_data(up['id'],{'status': 4}) # Cập nhật trạng thái đã xảy ra lỗi
+                print("Không thể click nút bài viết!")
+                return
             
             sleep(1)
             input_element = self.browser.switch_to.active_element
