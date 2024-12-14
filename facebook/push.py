@@ -33,12 +33,14 @@ class Push:
             link = pageUp['link']
             print(f"Chuyển hướng tới: {link}")
             self.browser.get(link)
+            sleep(5)
             name = self.updateName(pageUp) #Cập nhật tên fanpage
             if name == '':
                 continue
-            sleep(1)
+            print('Cập nhật tên page thành công, đợi 5s để tiếp tục....')
+            sleep(5)
             self.showPage(name) # Show ra fanpage
-            sleep(1)
+            sleep(5)
             self.up(pageUp) # Thực hiện up dứ liệu
             print(f'Đã đăng xong page: {pageUp["id"]}, chờ 10s để tiếp tục...')
             sleep(10)
@@ -60,7 +62,7 @@ class Push:
         print('-> Mở popup thông tin cá nhân!')
         profile_button = self.browser.find_element(By.XPATH, push['openProfile'])
         profile_button.click()
-        sleep(1)
+        sleep(3)
             
         try:
             switchPage = self.browser.find_element(By.XPATH, push['switchPage'](name))
@@ -68,15 +70,15 @@ class Push:
         except Exception as e:
             print("-> Không tìm thấy nút chuyển hướng tới trang quản trị!")
         
-        sleep(1)
+        sleep(3)
                 
     def up(self, listUp):
         for up in listUp['list_up']:
             self.pagePosts_instance.update_data(up['id'],{'status': 3, 'cookie_id': self.last_cookie['id']}) #Cập nhật trạng thái đang thực thi
             self.browser.get(listUp['link'])
-            sleep(1)
+            sleep(5)
             self.push(listUp,up)
-            sleep(2)
+            sleep(5)
         sleep(10)
         
     def push(self,page, up):
@@ -136,10 +138,13 @@ class Push:
             parent_form = input_element.find_element(By.XPATH, "./ancestor::form")
             parent_form.submit()
             sleep(10)
-            closeModal(1,self.browser)
+            try:
+                closeModal(1,self.browser)
+            except:
+                pass
             sleep(10)
             self.afterUp(page,up) # Lấy link bài viết vừa đăng
-            sleep(2)
+            sleep(3)
             print('\n--------- Đăng bài thành công ---------\n')
         except Exception as e:
             self.error_instance.insertContent(e)
@@ -185,7 +190,7 @@ class Push:
             self.error_instance.insertContent(e)
             print(f"Không tìm thấy bài viết vừa đăng! {e}")
         self.pagePosts_instance.update_data(up['id'],{'status': 2,'link_up': link_up}) # Cập nhật trạng thái đã đăng
-        sleep(1)
+        sleep(5)
         self.browser.get('https://facebook.com')
         sleep(2)
         
