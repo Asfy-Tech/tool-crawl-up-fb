@@ -63,6 +63,7 @@ def getData():
                     try:
                         browser.find_element(By.XPATH, types['form-logout'])
                         print(f"=> Đăng nhập thành công!")
+                        
                         if last_cookie['status'] == 1: 
                             account_cookies.update(last_cookie['id'],{'status': 2}) # Chuyển trạng thái cookie
                         
@@ -103,6 +104,7 @@ def getData():
                                 })
                             sleep(2)
                     except Exception as e:
+                        print(e)
                         print(f"=> Đăng nhập thất bại!")
                         error_instance.insertContent(e)
                         account_cookies.update(last_cookie['id'],{'status': 1})  # Chuyển trạng thái cookie

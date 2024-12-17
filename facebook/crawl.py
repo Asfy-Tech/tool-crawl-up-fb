@@ -1,6 +1,7 @@
 
 from facebook.type import types,removeString,removeDyamic,selectDyamic,removeComment
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import NoSuchElementException, WebDriverException
 from selenium.webdriver.common.by import By
 from time import sleep
 import json
@@ -172,10 +173,14 @@ class Crawl:
         # Lấy ảnh và video
         try:
             media = modal.find_element(By.XPATH,types['media'])
+        except NoSuchElementException:
+            media = modal
+        
+        try:
             images = media.find_elements(By.CSS_SELECTOR,'img')
             for img in images:
                 src = img.get_attribute('src')
-                if "emoji.php" not in src:
+                if src and src.startswith('http') and "emoji.php" not in src:
                     data['media']['images'].append(img.get_attribute('src'))
                 
             videos = media.find_elements(By.CSS_SELECTOR,'video')
@@ -184,7 +189,6 @@ class Crawl:
             print(f"Đã lấy {len(data['media']['images'])} ảnh và {len(data['media']['videos'])} video")
         except:
             print(f'Không lấy được ảnh hoặc video')
-
         
         # Lấy lượng like, chia sẻ
         try:
@@ -221,6 +225,21 @@ class Crawl:
             
             # Click vào các từ xem thêm
             for cm in comments:
+                countRemoveImage = 0
+                # Xóa ảnh trùng trong danh sách data['media']['images']
+                try:
+                    imgs_in_comment = cm.find_elements(By.CSS_SELECTOR, 'img')
+                    for img in imgs_in_comment:
+                        src = img.get_attribute('src')
+                        if src in data['media']['images']:
+                            data['media']['images'].remove(src)
+                            countRemoveImage = countRemoveImage + 1
+                except:
+                    pass
+                
+                if countRemoveImage > 0:
+                    print(f"Xoá được: {countRemoveImage} ảnh ở comment!")
+                
                 try:
                     xem_them = cm.find_element(By.XPATH, types['hasMore'])
                     if xem_them:
@@ -241,18 +260,28 @@ class Crawl:
                     if not div_2 or not div_2[0]: 
                         continue
                     textComment = div_2[0].text
-                                    
-                    if div_2 and div_2[1]:
-                        try:
-                            a_tags = div_2[1].find_elements(By.XPATH, './/a')
-                            for a in a_tags:
+                    
+                    try:
+                        if len(div_2) > 1:
+                            a_tags = div_2[1].find_elements(By.XPATH, './/a') 
+                            if not a_tags:
+                                a_tags = div_2[0].find_elements(By.XPATH, './/a')  
+                        elif len(div_2) > 0:
+                            a_tags = div_2[0].find_elements(By.XPATH, './/a')
+                        else:
+                            a_tags = []
+                        for a in a_tags:
+                            try:
                                 href = a.get_attribute('href')
-                                if href and 'facebook.com' not in href:  # Lấy href không chứa 'facebook.com'
-                                    link_comment.append(href)
-                        except IndexError:
-                            pass
-                        except Exception as e:
-                            print(f"Lỗi không xác định: {e}")
+                                # if href and 'facebook.com' not in href: 
+                                link_comment.append(href)
+                            except Exception as e:
+                                print(f"Lỗi khi lấy href: {e}")
+                    except IndexError as ie:
+                        print(f"Lỗi chỉ mục: {ie}")
+                    except Exception as e:
+                        print(f"Lỗi không xác định: {e}")
+                        
                 except:
                     countComment += 1
                     pass
