@@ -44,7 +44,8 @@ class Crawl:
             print('-> Không tìm thấy tên trang!')
             return
         
-        sleep(5)
+        self.getInfoPage()
+        
         print("Bắt đầu lấy dữ liệu!")
         pageLinkPost = f"{self.page['link']}/posts/"
         pageLinkStory = "https://www.facebook.com/permalink.php"
@@ -70,7 +71,6 @@ class Crawl:
             print(f"Lỗi khi lấy đường dẫn: {e}")
         
         if(len(post_links) > 0):
-            self.getInfoPage()
             self.checkPost(post_links)
         sleep(1)
     
@@ -272,9 +272,17 @@ class Crawl:
                             a_tags = []
                         for a in a_tags:
                             try:
-                                href = a.get_attribute('href')
-                                # if href and 'facebook.com' not in href: 
-                                link_comment.append(href)
+                                img_element = None
+                                try:
+                                    img_element = a.find_element(By.XPATH, 'preceding-sibling::img') 
+                                except:
+                                    pass
+                                
+                                if img_element:
+                                    print("Thẻ <a> có thẻ <img> phía trước, không lấy href.")
+                                else:
+                                    href = a.get_attribute('href')
+                                    link_comment.append(href)
                             except Exception as e:
                                 print(f"Lỗi khi lấy href: {e}")
                     except IndexError as ie:
@@ -354,25 +362,26 @@ class Crawl:
             
             linkPage = self.page['link'].rstrip('/')
             try:
-                likes = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='{linkPage}'][href*='friends_likes']")
+                # likes = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='{linkPage}'][href*='friends_likes']")
+                likes = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='friends_likes']")
                 dataUpdatePage['like_counts'] = likes.text
             except:
                 pass
 
             try:
-                follows = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='{linkPage}'][href*='followers']")
+                follows = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='followers']")
                 dataUpdatePage['follow_counts'] = follows.text
             except:
                 pass
 
             try:
-                following = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='{linkPage}'][href*='following']")
+                following = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='following']")
                 dataUpdatePage['following_counts'] = following.text
             except:
                 pass
             if dataUpdatePage:
                 print(f"Cập nhật (likes, followers, following) page: {self.page['id']}")
-                res = self.page_instance.update_page(self.page['id'],dataUpdatePage)
+                self.page_instance.update_page(self.page['id'],dataUpdatePage)
         except Exception as e:
             self.error_instance.insertContent(e)
         except KeyboardInterrupt:
