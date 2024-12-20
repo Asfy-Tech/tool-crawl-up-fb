@@ -14,135 +14,96 @@ from sql.pages import Page
 from sql.errors import Error
 from sql.history_crawl_page_posts import HistoryCrawlPagePost
 from sql.history import HistoryCrawlPage
+from sql.accounts import Account
+from sql.account_cookies import AccountCookies
 from urllib.parse import urlparse, parse_qs
 from sql.comment import Comment 
 
 class Crawl:
-    def __init__(self, browser, page, his):
+    def __init__(self, browser, account):
         self.browser = browser
-        self.page = page
-        self.his = his
+        self.account = account
         self.page_instance = Page()
         self.history_instance = HistoryCrawlPage()
         self.post_instance = Post()
         self.comment_instance = Comment()
         self.error_instance = Error()
+        self.account_instance = Account()
+        self.account_cookies = AccountCookies()
         self.history_crawl_page_post_instance = HistoryCrawlPagePost()
 
-    def get(self):
-        sleep(1)
-        closeModal(0, self.browser)
-        self.browser.execute_script("document.body.style.zoom='0.2';")
-        try:
-            name_pages = self.browser.find_elements(By.XPATH, '//h1')
-            name_page = name_pages[-1]
-            self.page_instance.update_page(self.page['id'],{'name': name_page.text.strip()})
-        except: 
-            self.history_instance.update_history(self.his['id'],{
-                'status': 3,
-            })
-            print('-> Không tìm thấy tên trang!')
-            return
-        
-        self.getInfoPage()
-        
-        print("Bắt đầu lấy dữ liệu!")
-        pageLinkPost = f"{self.page['link']}/posts/"
-        pageLinkStory = "https://www.facebook.com/permalink.php"
-        self.pageLinkPost = pageLinkPost
-        self.pageLinkStory = pageLinkStory
-
-        listPosts = self.browser.find_elements(By.XPATH, '//*[@aria-posinset]')
-        if len(listPosts) > 5:
-            listPosts = listPosts[:5]
-        print(f"Lấy được {len(listPosts)} bài viết")
-        try:
-            post_links = []
-            actions = ActionChains(self.browser)
-            for p in listPosts:
-                links = p.find_elements(By.XPATH, ".//a")
-                for link in links:
-                    if link.size['width'] > 0 and link.size['height'] > 0:
-                        actions.move_to_element(link).perform()
-                        href = link.get_attribute('href')
-                        if any(substring in href for substring in [pageLinkPost, pageLinkStory]):
-                            post_links.append(href)
-        except Exception as e:
-            print(f"Lỗi khi lấy đường dẫn: {e}")
-        
-        if(len(post_links) > 0):
-            self.checkPost(post_links)
-        sleep(1)
     
-    def checkPost(self, post_links):
-        post_ids = []
-        for link in post_links:
-            if self.pageLinkPost in link:
-                id = link.replace(self.pageLinkPost, '').split('?')[0]
-                if id not in post_ids:
-                    post_ids.append(id)
-            elif self.pageLinkStory in link:
-                parsed_url = urlparse(link)
-                query_params = parse_qs(parsed_url.query)
-                story_fbid = query_params.get('story_fbid', [None])[0]
-                if story_fbid not in post_ids:
-                    post_ids.append(story_fbid)
-                    
-        print(f"=> Lấy ra được {len(post_ids)} đường dẫn chi tiết")
-        
-        self.history_instance.update_history(self.his['id'],{
-            'counts': len(post_ids),
-        })
-        
-        new_post_links = []
-        seen_ids = set()
-        for post_id in post_ids:
-            for link in post_links:
-                if post_id in link and post_id not in seen_ids:
-                    new_post_links.append({
-                        'id': post_id,
-                        'link': link
-                    })
-                    seen_ids.add(post_id)
-                    
-        new_post_check_ids = self.post_instance.get_none_post_ids({
-            'links':new_post_links,
-            'his_id': self.his['id']
-        })
-        print(f"-> Lọc ra được {len(new_post_check_ids)} chưa tồn tại")
-                    
-        if new_post_check_ids:
-            for postLink in new_post_check_ids:
-                sleep(1)
-                self.crawlPost(postLink)
+    def handle(self):
+        while True:
+            try:
+                cookie = self.login() # Xử lý login
+                self.updateStatusAcount(3) # Đang lấy
+                self.crawl(cookie) # Bắt đầu quá trình crawl
+            except Exception as e:
+                print(f"Lỗi khi xử lý lấy dữ liệu!: {e}")
+                self.updateStatusAcount(1)
+                self.error_instance.insertContent(e)
+                print("Thử lại sau 3 phút...")
+                sleep(180)
+          
+    def crawl(self, cookie):
+        while True:
+            try:
+                listCrawl = self.getListCrawl()
+                for crawl in listCrawl:
+                    try:
+                        print(f"Chuyển hướng tới: {crawl['id']}")
+                        link = crawl['post_fb_link']
+                        self.updateStatusHistory(crawl['id'],2) # Đang lấy
+                        self.browser.get(link)
+                        self.crawlContentPost(crawl, cookie)
+                        self.updateStatusHistory(crawl['id'],3) # Đã lấy
+                    except Exception as e:
+                        self.updateStatusHistory(crawl['id'],4) # Gặp lỗi
+                        print(f"Lỗi khi xử lý lấy {crawl['id']}: {e}")
+                        self.error_instance.insertContent(e)
+            except Exception as e:
+                print(f"Lỗi trong quá trình crawl: {e}")
+                raise e
+            
+    def getListCrawl(self):
+        retry_interval = 60
+        while True:
+            try:
+                listCrawl = self.history_crawl_page_post_instance.get_list({
+                    'status': 1,
+                    'account_id': self.account["id"],
+                    'sort': 'asc',
+                })['data']
+                if listCrawl: 
+                    print(f"Lấy được bài viết cần lấy: {len(listCrawl)} trang.")
+                    return listCrawl
+                else:
+                    print("Không có dữ liệu. Đợi 1 phút trước khi thử lại...")
+            except Exception as e:
+                print(f"Lỗi khi lấy danh sách trang: {e}")
 
-    def crawlPost(self, postLink):
-        # Cập nhật trạng thái đang lấy
-        self.history_crawl_page_post_instance.update(postLink['id'], {
-            'status':2,
-        })
+            sleep(retry_interval)
+
+    def crawlContentPost(self, crawl, cookie):
         data = {
-            'post_id': postLink["post_fb_id"],
-            'link_facebook': postLink['post_fb_link'],
-            'page_id': self.page['id'],
-            'content': '',
+            'account_id': cookie['account_id'],
+            'cookie_id': cookie['id'],
+            'post_id': crawl["post_fb_id"],
+            'page_id': crawl['page_id'],
+            'link_facebook': crawl['post_fb_link'],
             'media' : {
                 'images': [],
                 'videos': []
             },
-            'share': 0,
-            'comment': 0,
-            'like': 0,
-            'up': False,
+            'up': 0,
         }
         dataComment = []
-        self.browser.get(f"{postLink['post_fb_link']}")
-        print(f"- Chuyển hướng tới: {postLink['post_fb_link']}")
         sleep(5)
         
-        print(f"Bắt đầu lấy dữ liệu bài viết: {postLink['post_fb_id']}")
+        print(f"Bắt đầu lấy dữ liệu bài viết: {crawl['post_fb_id']}")
         
-        modal = None
+        modal = None # Xử lý lấy ô bài viết
         for modalXPath in types['modal']:
             try:
                 # Chờ cho modal xuất hiện
@@ -165,9 +126,9 @@ class Crawl:
             for string in removeString:
                 contentText = contentText.replace(string, '')
             data['content'] = contentText.strip()
-            print(f'->Đã lấy nội dung')
         except:
-            print(f'Không lấy được nội dung')
+            print(f'Bài viết k có content')
+            data['content'] = ''
             pass
 
         # Lấy ảnh và video
@@ -186,9 +147,8 @@ class Crawl:
             videos = media.find_elements(By.CSS_SELECTOR,'video')
             for video in videos:
                 data['media']['videos'].append(video.get_attribute('src'))
-            print(f"Đã lấy {len(data['media']['images'])} ảnh và {len(data['media']['videos'])} video")
         except:
-            print(f'Không lấy được ảnh hoặc video')
+            print(f'Bài viết k có ảnh hoặc video')
         
         # Lấy lượng like, chia sẻ
         try:
@@ -206,7 +166,6 @@ class Crawl:
                         data['comment'] = dyamic
                     if selectDyamic['share'] in dyamic:
                         data['share'] = dyamic
-            print(f"Bài viết có: {data['like']} like, {data['comment']} comments, {data['share']} share")
         except Exception as e:
             print(f"Không lấy được like, comment, share: {e}")
 
@@ -282,7 +241,8 @@ class Crawl:
                                     print("Thẻ <a> có thẻ <img> phía trước, không lấy href.")
                                 else:
                                     href = a.get_attribute('href')
-                                    link_comment.append(href)
+                                    if crawl['post_fb_id'] not in href and 'https://www.facebook.com' not in href:
+                                        link_comment.append(href)
                             except Exception as e:
                                 print(f"Lỗi khi lấy href: {e}")
                     except IndexError as ie:
@@ -300,7 +260,7 @@ class Crawl:
                 textComment = textComment.strip()
                 textArray = textComment.split('\n')
 
-                if 'Fan cứng' in textComment:
+                if 'Top fan' in textComment:
                     user_name = textArray[1]
                     textContentComment = ' '.join(textArray[2:])
                 else:
@@ -312,7 +272,6 @@ class Crawl:
 
                 countComment += 1
                 dataComment.append({
-                    'post_id': postLink["post_fb_id"],
                     'user_name': user_name,
                     'content': textContentComment,
                     'link_comment': link_comment,
@@ -322,71 +281,63 @@ class Crawl:
             print(e)
             print("Không lấy được bình luận!")
 
-        self.insertPostAndComment(data,dataComment, postLink)
+        self.insertPostAndComment(data,dataComment, crawl)
         
-    def insertPostAndComment(self, data, dataComment, postLink):
-        try:
-            print("Đang lưu bài viết và bình luận vào database...")
-            res = self.post_instance.insert_post({
-                'post' : data,
-                'comments': dataComment
-            })
-            print(f"Response: {res}")
-            try:
-                if res['post_id']:
-                    self.history_crawl_page_post_instance.update(postLink['id'], {
-                        'status':3,
-                        'post_id': res['post_id']
-                    })
-                    res = self.history_instance.update_count(self.his['id'],{'type': 'count_get'})
-            except:
-                self.error_instance.insertContent(e)
-            print("=> Đã lưu thành công!")
-        except Exception as e:
-            error = self.error_instance.insertContent(e)
-            self.history_crawl_page_post_instance.update(postLink['id'], {
-                'status':4,
-                'error': error
-            })
-            self.history_instance.update_count(self.his['id'],{'type': 'count_error'})
-        except KeyboardInterrupt:
-            self.history_crawl_page_post_instance.update(postLink['id'], {
-                'status':4,
-            })
-            self.history_instance.update_count(self.his['id'],{'type': 'count_error'})
+    def insertPostAndComment(self, data, dataComment, crawl):
+        # print(json.dumps(data, indent=4))
+        # print(json.dumps(dataComment, indent=4))
+        print("Đang lưu bài viết và bình luận vào database...")
+        res = self.post_instance.insert_post({
+            'post' : data,
+            'comments': dataComment
+        })
+        print(f"Response: {res}")
+        if res['post_id']:
+            self.history_crawl_page_post_instance.update(crawl['id'],res['post_id'])
+        else:
+            self.updateStatusHistory(crawl['id'],4)
+
+        print("=> Đã lưu thành công!")
         print("\n-----------------------------------------------------\n")
 
-    def getInfoPage(self):
-        dataUpdatePage = {}
+
+   
+    # Copy
+    def login(self):
         try:
+            if not self.account['latest_cookie']:
+                raise ValueError("Không có cookie để đăng nhập.")
+
+            last_cookie = self.account['latest_cookie']    
+            cookies = json.loads(last_cookie['cookies'])
+            for cookie in cookies:
+                self.browser.add_cookie(cookie)
+            sleep(1)
+            self.browser.get('https://facebook.com')
+            sleep(1)
             
-            linkPage = self.page['link'].rstrip('/')
             try:
-                # likes = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='{linkPage}'][href*='friends_likes']")
-                likes = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='friends_likes']")
-                dataUpdatePage['like_counts'] = likes.text
-            except:
-                pass
-
-            try:
-                follows = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='followers']")
-                dataUpdatePage['follow_counts'] = follows.text
-            except:
-                pass
-
-            try:
-                following = self.browser.find_element(By.CSS_SELECTOR, f"a[href*='following']")
-                dataUpdatePage['following_counts'] = following.text
-            except:
-                pass
-            if dataUpdatePage:
-                print(f"Cập nhật (likes, followers, following) page: {self.page['id']}")
-                self.page_instance.update_page(self.page['id'],dataUpdatePage)
+                self.browser.find_element(By.XPATH, types['form-logout'])
+            except Exception as e:
+                self.updateStatusAcountCookie(last_cookie['id'],1)
+                raise ValueError("Cookie không đăng nhập được.")
+            print(f"Login {self.account['name']} thành công")
+            return last_cookie
         except Exception as e:
-            self.error_instance.insertContent(e)
-        except KeyboardInterrupt:
-            res = self.history_instance.update_history(self.his['id'], {
-                'status': 4,
-            })
-            print(f'Update status 4: {res}')
+            print(f"Lỗi khi login với cookie: {e}")
+            raise  # Ném lỗi ra ngoài để catch trong hàm handle()
     
+    def updateStatusAcount(self,status):
+        # 1: Lỗi cookie,
+        # 2: Đang hoạt động,
+        # 3: Đang lấy dữ liệu...,
+        # 4: Đang đăng bài...
+        self.account_instance.update_account(self.account['id'], {'status_login': status})
+        
+    def updateStatusAcountCookie(self,cookie_id, status):
+        # 1: Chết cookie
+        # 2: Cookie đang sống
+        self.account_cookies.update(cookie_id,{'status': status})
+        
+    def updateStatusHistory(self, history_id, status):
+        return self.history_crawl_page_post_instance.update(history_id, {'status': status})

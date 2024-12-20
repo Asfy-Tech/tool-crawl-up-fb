@@ -9,7 +9,7 @@ from sql.accounts import Account
 from time import sleep
 import tempfile
 import shutil
-from facebook.crawl import Crawl
+from facebook.crawlid import CrawlId
 
 
 account_instance = Account()
@@ -40,7 +40,7 @@ def process_account(account):
         
         browser.get("https://facebook.com")
         
-        crawlId = Crawl(browser, account)
+        crawlId = CrawlId(browser, account)
         crawlId.handle()
 
     except Exception as e:

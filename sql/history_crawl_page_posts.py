@@ -4,6 +4,9 @@ class HistoryCrawlPagePost(Model):
     def __init__(self):
         super().__init__()
 
+    def get_list(self, params=None):
+        return self.get("history-crawl-page-posts", params=params)
+
     def insert(self, data):
         return self.post("history-crawl-page-posts", data=data)
     

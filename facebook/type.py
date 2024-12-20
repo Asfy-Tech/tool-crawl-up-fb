@@ -9,17 +9,24 @@
 
 # VN
 types = {
+    'form-logout': "//meta[@name='viewport']",
+    'verify_account': './/*[@aria-label="Verified"]',
+    'friends_likes': "a[href*='friends_likes']",
+    'followers': "a[href*='followers']",
+    'following': "a[href*='following']",
+    'list_posts': '//*[@aria-posinset]',
+    
     'modal': [
         '/html/body/div[1]/div/div[1]/div/div[5]/div/div/div[2]/div/div/div/div',
         '//*[@aria-posinset="1"]'
     ],
-    'scroll': './div/div/div/div[2]',
     'content': './/*[@data-ad-rendering-role="story_message"]',
+    
+    'scroll': './div/div/div/div[2]',
     'media': './/*[@data-ad-rendering-role="story_message"]/parent::div/following-sibling::div',
     'dyamic': './/*[@data-visualcompletion="ignore-dynamic"]/div/div/div/div',
-    'hasMore': ".//div[text()='Xem thêm']",
-    'comments': ".//*[contains(@aria-label, 'Bình luận')]",
-    'form-logout': "//meta[@name='viewport']"
+    'hasMore': ".//div[text()='See more']",
+    'comments': ".//*[contains(@aria-label, 'Comment')]",
 }
 
 
@@ -28,31 +35,31 @@ removeString = [
     '\n',
     '·',
     '  ',
-    'Xem bản dịch',
-    'Xem bản gốc',
-    'Xếp hạng bản dịch này'
+    'See Translation',  # Xem bản dịch
+    'View Original',     # Xem bản gốc
+    'Rate This Translation'  # Xếp hạng bản dịch này
 ]
 
 # Xoá chữ k cần thiết khi lấy comment bài viết
 removeComment = [
     '·',
-    'Tác giả\n',
+    'Author\n',
     '  ',
-    'Fan cứngt'
-    'Theo dõi',
+    'Top fan'
+    'Follow',
 ]
 
 
 # Xoá thông tin k cần thiết khi lấy lượt like, chia sẻ, comment
 removeDyamic = [
-    'Tất cả cảm xúc:',
+    'All reactions:',
     '',
 ]
 
 # Lấy bình luận, chia sẻ dựa vào chữ này
 selectDyamic = {
-    'comment': 'bình luận',
-    'share': 'lượt chia sẻ'
+    'comment': 'comment',
+    'share': 'share'
 }
 
 
