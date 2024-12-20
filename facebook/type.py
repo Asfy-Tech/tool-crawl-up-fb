@@ -65,8 +65,9 @@ selectDyamic = {
 
 
 push = {
-    'openProfile': '//*[@aria-label="Trang cá nhân của bạn"]',
+    'openProfile': '//*[@aria-label="Your profile"]',
+    'allPages': '//*[contains(text(), "Switch to")]',
     'createPost': ["bạn viết gì","bạn đang nghĩ gì"],
-    'switchPage': lambda name: f'//*[contains(@aria-label, "Chuyển sang") and contains(@aria-label, "{name}")]'
+    'switchPage': lambda name: f'//*[contains(@aria-label, "Switch to") and contains(@aria-label, "{name}")]'
 }
 

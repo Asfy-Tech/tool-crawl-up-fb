@@ -2,13 +2,16 @@
 from selenium.webdriver.common.by import By
 from sql.pages import Page
 from sql.errors import Error
-from facebook.type import types
+from facebook.type import types,push
+from base.browser import Browser
+from multiprocessing import Process
 from sql.account_cookies import AccountCookies
 from sql.accounts import Account
 from sql.history_crawl_page_posts import HistoryCrawlPagePost
 import json
 from selenium.webdriver.common.action_chains import ActionChains
 from helpers.modal import closeModal
+from facebook.helpers import login,updateStatusAcount,handleCrawlNewFeed
 from urllib.parse import urlparse, parse_qs
 from time import sleep
 
@@ -25,12 +28,20 @@ class CrawlId:
     def handle(self):
         while True:
             try:
-                cookie = self.login() # Xử lý login
-                self.updateStatusAcount(3) # Đang lấy
-                self.crawl(cookie) # Bắt đầu quá trình crawl
+                account = self.account_instance.find(self.account['id'])
+                if not account['id']:
+                    raise ValueError('Không tìm thấy tài khoản')
+                self.account = account
+                cookie = login(self.browser,self.account)
+                updateStatusAcount(self.account['id'],3) # Đang lấy
+                if account['newfeed'] == 1:
+                    print('Lấy bài viết new feed')
+                    self.crawlNewFeed(account)                    
+                else:
+                    self.crawl(cookie) # Bắt đầu quá trình crawl
             except Exception as e:
                 print(f"Lỗi khi xử lý lấy dữ liệu!: {e}")
-                self.updateStatusAcount(1)
+                updateStatusAcount(self.account['id'],1)
                 self.error_instance.insertContent(e)
                 print("Thử lại sau 3 phút...")
                 sleep(180)
@@ -109,7 +120,6 @@ class CrawlId:
                 self.history_crawl_page_posts.insert(data)
                 self.account_cookies.updateCount(cookie['id'],'counts')
 
-    
     def updateInfoFanpage(self, page):
         dataUpdatePage = {}
         try:
@@ -172,39 +182,35 @@ class CrawlId:
                 print(f"Lỗi khi lấy danh sách trang: {e}")
 
             sleep(retry_interval)
-            
-    def login(self):
-        try:
-            if not self.account['latest_cookie']:
-                raise ValueError("Không có cookie để đăng nhập.")
 
-            last_cookie = self.account['latest_cookie']    
-            cookies = json.loads(last_cookie['cookies'])
-            for cookie in cookies:
-                self.browser.add_cookie(cookie)
-            sleep(1)
-            self.browser.get('https://facebook.com')
-            sleep(1)
-            
-            try:
-                self.browser.find_element(By.XPATH, types['form-logout'])
-            except Exception as e:
-                self.updateStatusAcountCookie(last_cookie['id'],1)
-                raise ValueError("Cookie không đăng nhập được.")
-            print(f"Login {self.account['name']} thành công")
-            return last_cookie
-        except Exception as e:
-            print(f"Lỗi khi login với cookie: {e}")
-            raise  # Ném lỗi ra ngoài để catch trong hàm handle()
-    
-    def updateStatusAcount(self,status):
-        # 1: Lỗi cookie,
-        # 2: Đang hoạt động,
-        # 3: Đang lấy dữ liệu...,
-        # 4: Đang đăng bài...
-        self.account_instance.update_account(self.account['id'], {'status_login': status})
+    def crawlNewFeed(self,account):
+        print(f"Chuyển hướng tới trang chủ!")
+        self.browser.get('https://facebook.com')
         
-    def updateStatusAcountCookie(self,cookie_id, status):
-        # 1: Chết cookie
-        # 2: Cookie đang sống
-        self.account_cookies.update(cookie_id,{'status': status})
+        # Mở trang cá nhân
+        try:
+            profile_button = self.browser.find_element(By.XPATH, push['openProfile'])
+            profile_button.click()
+            
+        except: 
+            raise ValueError('Không thể mở trang cá nhân!')
+        
+        sleep(5)
+        
+        try:
+            allPages = self.browser.find_elements(By.XPATH, '//div[contains(@aria-label, "Switch to")]')
+            print(f'Số fanpage để lướt: {len(allPages)}')
+            processes = []
+            for page in allPages:
+                name = page.text.strip()
+                process = Process(target=handleCrawlNewFeed, args=(account,name))
+                processes.append(process)
+                process.start()
+            
+            for process in processes:
+                process.join()
+            print("Tất cả fanpage đã được xử lý.")
+            
+        except Exception as e: 
+            raise ValueError(e)
+    
