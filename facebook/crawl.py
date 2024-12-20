@@ -58,6 +58,7 @@ class Crawl:
                         self.browser.get(link)
                         self.crawlContentPost(crawl, cookie)
                         self.updateStatusHistory(crawl['id'],3) # Đã lấy
+                        self.account_cookies.updateCount(cookie['id'],'count_get')
                     except Exception as e:
                         self.updateStatusHistory(crawl['id'],4) # Gặp lỗi
                         print(f"Lỗi khi xử lý lấy {crawl['id']}: {e}")

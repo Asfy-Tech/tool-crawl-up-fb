@@ -10,3 +10,11 @@ class AccountCookies(Model):
     def update(self, id, data):
         url = f"account-cookies/{id}"
         return self.put(url, data=data)
+    
+    def updateCount(self, id, counts):
+        url = f"account-cookies/{id}/count"
+        return self.put(url,  {
+            'type': counts
+        })
+    
+    

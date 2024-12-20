@@ -23,14 +23,17 @@ class CrawlId:
         self.history_crawl_page_posts = HistoryCrawlPagePost()
 
     def handle(self):
-        try:
-            cookie = self.login() # Xử lý login
-            self.updateStatusAcount(3) # Đang lấy
-            self.crawl(cookie) # Bắt đầu quá trình crawl
-        except Exception as e:
-            print(f"Lỗi khi xử lý lấy dữ liệu!: {e}")
-            self.updateStatusAcount(1)
-            self.error_instance.insertContent(e)
+        while True:
+            try:
+                cookie = self.login() # Xử lý login
+                self.updateStatusAcount(3) # Đang lấy
+                self.crawl(cookie) # Bắt đầu quá trình crawl
+            except Exception as e:
+                print(f"Lỗi khi xử lý lấy dữ liệu!: {e}")
+                self.updateStatusAcount(1)
+                self.error_instance.insertContent(e)
+                print("Thử lại sau 3 phút...")
+                sleep(180)
           
     def crawl(self, cookie):
         while True:
@@ -104,6 +107,7 @@ class CrawlId:
                     'account_id': cookie['account_id'],
                 }
                 self.history_crawl_page_posts.insert(data)
+                self.account_cookies.updateCount(cookie['id'],'counts')
 
     
     def updateInfoFanpage(self, page):
