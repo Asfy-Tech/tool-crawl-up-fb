@@ -119,8 +119,7 @@ class Crawl:
             except Exception as e:
                 continue
         if not modal:
-            print('Không lấy được thấy bài viết!')    
-            raise e
+            raise ValueError('Không lấy được thấy bài viết!')
         else:
             aria_posinset = modal.get_attribute("aria-posinset")
             if aria_posinset is not None:

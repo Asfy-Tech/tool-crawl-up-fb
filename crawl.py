@@ -1,69 +1,107 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from multiprocessing import Process
+import signal
+import multiprocessing
 import os
+import shutil
 from selenium.common.exceptions import WebDriverException
 from accounts import idAccounts
 from base.browser import Browser
-from helpers.inp import get_user_input
-from sql.accounts import Account
-from time import sleep
-import tempfile
-import shutil
 from facebook.crawl import Crawl
-
+from facebook.crawlid import CrawlId
+from sql.accounts import Account
+from helpers.inp import get_user_input
 
 account_instance = Account()
+processes = []  # Lưu danh sách các tiến trình
 
-def process_account(account):
+
+def terminate_processes():
     """
-    Hàm xử lý một tài khoản trong một tiến trình riêng.
+    Hàm để dừng tất cả các tiến trình con đang chạy.
+    """
+    for process in processes:
+        if process.is_alive():
+            process.terminate()
+            process.join()
+    print("Tất cả tiến trình con đã được dừng.")
+
+
+def signal_handler(sig, frame):
+    """
+    Xử lý tín hiệu Ctrl+C.
+    """
+    print("\nNhận tín hiệu Ctrl+C. Đang dừng...")
+    terminate_processes()
+    exit(0)
+
+
+def process_crawl(account):
+    """
+    Hàm xử lý Crawl trong một tiến trình riêng.
     """
     browser = None
+    browserStart = None
     try:
-        print(f"Bắt đầu xử lý tài khoản: {account['name']}")
-        browserStart = Browser(account['id'])
+        print(f"Bắt đầu Crawl cho tài khoản: {account['name']}")
+        browserStart = Browser(str(account['id']) + "_crawl")
         browser = browserStart.start()
-        
         browser.get("https://facebook.com")
-        
-        crawlId = Crawl(browser, account)
-        crawlId.handle()
-
+        crawl = Crawl(browser, account)
+        crawl.handle()
     except Exception as e:
-        print(f"Lỗi xảy ra khi xử lý tài khoản {account['name']}: {str(e)}")
-    except WebDriverException as e:
-        print(f"Lỗi khi khởi tạo trình duyệt: {e}")
+        print(f"Lỗi trong Crawl: {e}")
     finally:
         if browser:
             browser.quit()
-        if os.path.exists(browserStart.profile_dir):
+        if browserStart and os.path.exists(browserStart.profile_dir):
+            shutil.rmtree(browserStart.profile_dir)
+
+
+def process_crawlId(account):
+    """
+    Hàm xử lý CrawlId trong một tiến trình riêng.
+    """
+    browser = None
+    browserStart = None
+    try:
+        print(f"Bắt đầu CrawlId cho tài khoản: {account['name']}")
+        browserStart = Browser(str(account['id']) + "_crawlId")
+        browser = browserStart.start()
+        browser.get("https://facebook.com")
+        crawlId = CrawlId(browser, account)
+        crawlId.handle()
+    except Exception as e:
+        print(f"Lỗi trong CrawlId: {e}")
+    finally:
+        if browser:
+            browser.quit()
+        if browserStart and os.path.exists(browserStart.profile_dir):
             shutil.rmtree(browserStart.profile_dir)
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)  # Đăng ký tín hiệu Ctrl+C
     try:
         id_list = get_user_input()
-        # Lấy danh sách tài khoản từ nguồn
         accounts = account_instance.get_accounts({'in[]': id_list})['data']
 
         if not accounts:
             print("Không còn tài khoản nào để xử lý.")
         else:
-            processes = []
-
             for account in accounts:
-                # Tạo một tiến trình riêng cho mỗi tài khoản
-                process = Process(target=process_account, args=(account,))
-                processes.append(process)
-                process.start()
+                # Tạo tiến trình xử lý Crawl
+                crawl_process = multiprocessing.Process(target=process_crawl, args=(account,))
+                crawlId_process = multiprocessing.Process(target=process_crawlId, args=(account,))
 
-            # Đợi tất cả tiến trình hoàn thành
+                processes.extend([crawl_process, crawlId_process])  # Thêm tiến trình vào danh sách
+
+                crawl_process.start()
+                crawlId_process.start()
+
             for process in processes:
                 process.join()
 
             print("Tất cả các tài khoản đã được xử lý.")
-
     except Exception as e:
-        print(f"Lỗi không mong muốn xảy ra: {str(e)}")
+        print(f"Lỗi không mong muốn: {e}")
+    finally:
+        terminate_processes()
