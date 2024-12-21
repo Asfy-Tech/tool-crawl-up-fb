@@ -32,7 +32,8 @@ class CrawlId:
                 if not account['id']:
                     raise ValueError('Không tìm thấy tài khoản')
                 self.account = account
-                cookie = login(self.browser,self.account)
+                # cookie = login(self.browser,self.account)
+                cookie = account['latest_cookie']
                 updateStatusAcount(self.account['id'],3) # Đang lấy
                 if account['newfeed'] == 1:
                     print('Lấy bài viết new feed')
@@ -106,8 +107,8 @@ class CrawlId:
                 story_fbid = query_params.get('story_fbid', [None])[0]
                 if story_fbid and story_fbid not in [data['id'] for data in post_data]:
                     post_data.append({'id': story_fbid, 'link': link})
-             
         if post_data:
+            print(json.dumps(post_data,indent=4))
             for post in post_data:
                 data = {
                     'post_fb_id': post['id'],

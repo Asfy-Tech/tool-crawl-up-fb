@@ -121,3 +121,12 @@ def handleCrawlNewFeed(account, name):
             browser.execute_script("window.scrollBy(0, 500);")
         sleep(5)
     
+    
+def is_valid_link(href, crawl):
+    """
+    Kiểm tra xem URL có hợp lệ hay không:
+    - Không chứa ID của bài viết.
+    - Không phải là một tệp GIF.
+    - Không phải là một URL của Facebook.
+    """
+    return crawl['post_fb_id'] not in href and '.gif' not in href and 'https://www.facebook.com' not in href

@@ -5,6 +5,7 @@ from selenium.common.exceptions import NoSuchElementException, WebDriverExceptio
 from selenium.webdriver.common.by import By
 from time import sleep
 import json
+from facebook.helpers import is_valid_link
 from helpers.modal import closeModal
 from datetime import datetime
 from selenium.webdriver.support.ui import WebDriverWait
@@ -36,9 +37,9 @@ class Crawl:
     def handle(self):
         while True:
             try:
-                cookie = self.login() # Xử lý login
-                self.updateStatusAcount(3) # Đang lấy
-                self.crawl(cookie) # Bắt đầu quá trình crawl
+                cookie = self.account['latest_cookie']
+                self.updateStatusAcount(3)
+                self.crawl(cookie)
             except Exception as e:
                 print(f"Lỗi khi xử lý lấy dữ liệu!: {e}")
                 self.updateStatusAcount(1)
@@ -97,7 +98,7 @@ class Crawl:
             'cookie_id': cookie['id'],
             'post_id': crawl["post_fb_id"],
             'page_id': crawl.get('page_id') or 0,
-            'newfeed': crawl.get('page_id') or 0,
+            'newfeed': crawl.get('newfeed') or 0,
             'link_facebook': crawl['post_fb_link'],
             'media' : {
                 'images': [],
@@ -106,10 +107,9 @@ class Crawl:
             'up': 0,
         }
         dataComment = []
-        sleep(5)
-        
+        closeModal(0, self.browser)
+        sleep(2)
         print(f"Bắt đầu lấy dữ liệu bài viết: {crawl['post_fb_id']}")
-        
         modal = None # Xử lý lấy ô bài viết
         for modalXPath in types['modal']:
             try:
@@ -123,9 +123,10 @@ class Crawl:
         else:
             aria_posinset = modal.get_attribute("aria-posinset")
             if aria_posinset is not None:
-                closeModal(0, self.browser)
-            else:
-                closeModal(2, self.browser)
+                # closeModal(0, self.browser)
+            # else:
+                pass
+                # closeModal(2, self.browser)
                 
         try:
             content = modal.find_element(By.XPATH, types['content'])
@@ -175,7 +176,6 @@ class Crawl:
                         data['share'] = dyamic
         except Exception as e:
             print(f"Không lấy được like, comment, share: {e}")
-        sleep(2)
         # Lấy comment
         try:
             scroll = modal.find_element(By.XPATH,types['scroll'])
@@ -190,7 +190,6 @@ class Crawl:
             
             # Click vào các từ xem thêm
             for cm in comments:
-                countRemoveImage = 0
                 # Xóa ảnh trùng trong danh sách data['media']['images']
                 try:
                     imgs_in_comment = cm.find_elements(By.CSS_SELECTOR, 'img')
@@ -198,7 +197,15 @@ class Crawl:
                         src = img.get_attribute('src')
                         if src in data['media']['images']:
                             data['media']['images'].remove(src)
-                            countRemoveImage = countRemoveImage + 1
+                except:
+                    pass
+                # Xóa video trùng trong danh sách data['media']['videos']
+                try:
+                    videos_in_comment = cm.find_elements(By.CSS_SELECTOR, 'video')
+                    for video in videos_in_comment:
+                        src = video.get_attribute('src')
+                        if src in data['media']['videos']:
+                            data['media']['videos'].remove(src)
                 except:
                     pass
 
@@ -244,7 +251,7 @@ class Crawl:
                                     print("Thẻ <a> có thẻ <img> phía trước, không lấy href.")
                                 else:
                                     href = a.get_attribute('href')
-                                    if crawl['post_fb_id'] not in href and 'https://www.facebook.com' not in href:
+                                    if href and is_valid_link(href, crawl):
                                         link_comment.append(href)
                             except Exception as e:
                                 print(f"Lỗi khi lấy href: {e}")
@@ -291,6 +298,7 @@ class Crawl:
     def insertPostAndComment(self, data, dataComment, crawl):
         # print(json.dumps(data, indent=4))
         # print(json.dumps(dataComment, indent=4))
+        # sleep(10000)
         print("Đang lưu bài viết và bình luận vào database...")
         res = self.post_instance.insert_post({
             'post' : data,
@@ -301,36 +309,10 @@ class Crawl:
             self.history_crawl_page_post_instance.update(crawl['id'],{'post_id':res['post_id']})
         else:
             self.updateStatusHistory(crawl['id'],4)
-
         print("=> Đã lưu thành công!")
         print("\n-----------------------------------------------------\n")
 
 
-    # Copy
-    def login(self):
-        try:
-            if not self.account['latest_cookie']:
-                raise ValueError("Không có cookie để đăng nhập.")
-
-            last_cookie = self.account['latest_cookie']    
-            cookies = json.loads(last_cookie['cookies'])
-            for cookie in cookies:
-                self.browser.add_cookie(cookie)
-            sleep(1)
-            self.browser.get('https://facebook.com')
-            sleep(1)
-            
-            try:
-                self.browser.find_element(By.XPATH, types['form-logout'])
-            except Exception as e:
-                self.updateStatusAcountCookie(last_cookie['id'],1)
-                raise ValueError("Cookie không đăng nhập được.")
-            print(f"Login {self.account['name']} thành công")
-            return last_cookie
-        except Exception as e:
-            print(f"Lỗi khi login với cookie: {e}")
-            raise  # Ném lỗi ra ngoài để catch trong hàm handle()
-    
     def updateStatusAcount(self,status):
         # 1: Lỗi cookie,
         # 2: Đang hoạt động,
