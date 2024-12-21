@@ -120,7 +120,7 @@ class Crawl:
                 continue
         if not modal:
             print('Không lấy được thấy bài viết!')    
-            return
+            raise e
         else:
             aria_posinset = modal.get_attribute("aria-posinset")
             if aria_posinset is not None:
@@ -299,8 +299,7 @@ class Crawl:
         })
         print(f"Response: {res}")
         if res['post_id']:
-            resUp = self.history_crawl_page_post_instance.update(crawl['id'],{'post_id':res['post_id']})
-            print(resUp)
+            self.history_crawl_page_post_instance.update(crawl['id'],{'post_id':res['post_id']})
         else:
             self.updateStatusHistory(crawl['id'],4)
 
@@ -308,7 +307,6 @@ class Crawl:
         print("\n-----------------------------------------------------\n")
 
 
-   
     # Copy
     def login(self):
         try:
