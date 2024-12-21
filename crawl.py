@@ -6,6 +6,7 @@ import os
 from selenium.common.exceptions import WebDriverException
 from accounts import idAccounts
 from base.browser import Browser
+from helpers.inp import get_user_input
 from sql.accounts import Account
 from time import sleep
 import tempfile
@@ -43,8 +44,9 @@ def process_account(account):
 
 if __name__ == "__main__":
     try:
+        id_list = get_user_input()
         # Lấy danh sách tài khoản từ nguồn
-        accounts = account_instance.get_accounts({'in[]': idAccounts['get']})['data']
+        accounts = account_instance.get_accounts({'in[]': id_list})['data']
 
         if not accounts:
             print("Không còn tài khoản nào để xử lý.")

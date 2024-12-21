@@ -7,6 +7,7 @@ from base.browser import Browser
 from selenium.common.exceptions import WebDriverException
 from accounts import idAccounts
 from sql.accounts import Account
+from helpers.inp import show_confirm_continue,get_user_input
 from time import sleep
 import shutil
 from facebook.crawlid import CrawlId
@@ -40,9 +41,11 @@ def process_account(account):
 
 
 if __name__ == "__main__":
+    id_list = get_user_input()
+
     try:
         # Lấy danh sách tài khoản từ nguồn
-        accounts = account_instance.get_accounts({'in[]': idAccounts['get']})['data']
+        accounts = account_instance.get_accounts({'in[]': id_list})['data']
 
         if not accounts:
             print("Không còn tài khoản nào để xử lý.")
