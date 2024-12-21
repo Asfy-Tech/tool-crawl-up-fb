@@ -51,6 +51,11 @@ class Crawl:
             try:
                 listCrawl = self.getListCrawl()
                 for crawl in listCrawl:
+                    # crawl = {
+                    #     'id': 123,
+                    #     'post_fb_id': 'pfbid02DQQi9kxAWoyzm6vM4WoFzbxn1b8orsjhH9HHnVHkxtBpAtv71odRBLF2uFmdrmW6l',
+                    #     'post_fb_link': 'https://www.facebook.com/VienVibi/posts/pfbid02DQQi9kxAWoyzm6vM4WoFzbxn1b8orsjhH9HHnVHkxtBpAtv71odRBLF2uFmdrmW6l?amp%3B__tn__=%2CO%2CP-R'
+                    # }
                     try:
                         print(f"Chuyển hướng tới: {crawl['id']}")
                         link = crawl['post_fb_link']
@@ -91,7 +96,8 @@ class Crawl:
             'account_id': cookie['account_id'],
             'cookie_id': cookie['id'],
             'post_id': crawl["post_fb_id"],
-            'page_id': crawl['page_id'],
+            'page_id': crawl.get('page_id') or 0,
+            'newfeed': crawl.get('page_id') or 0,
             'link_facebook': crawl['post_fb_link'],
             'media' : {
                 'images': [],
@@ -114,12 +120,13 @@ class Crawl:
                 continue
         if not modal:
             print('Không lấy được thấy bài viết!')    
+            return
         else:
             aria_posinset = modal.get_attribute("aria-posinset")
             if aria_posinset is not None:
                 closeModal(0, self.browser)
             else:
-                closeModal(1, self.browser)
+                closeModal(2, self.browser)
                 
         try:
             content = modal.find_element(By.XPATH, types['content'])
@@ -130,28 +137,28 @@ class Crawl:
         except:
             print(f'Bài viết k có content')
             data['content'] = ''
-            pass
 
         # Lấy ảnh và video
+        media = None
         try:
             media = modal.find_element(By.XPATH,types['media'])
-        except NoSuchElementException:
+        except Exception:
             media = modal
-        
+            
+        media = modal
         try:
-            images = media.find_elements(By.CSS_SELECTOR,'img')
+            images = media.find_elements(By.XPATH, './/img')
             for img in images:
                 src = img.get_attribute('src')
                 if src and src.startswith('http') and "emoji.php" not in src:
                     data['media']['images'].append(img.get_attribute('src'))
                 
-            videos = media.find_elements(By.CSS_SELECTOR,'video')
+            videos = media.find_elements(By.XPATH, './/video')
             for video in videos:
                 data['media']['videos'].append(video.get_attribute('src'))
-        except:
+        except Exception as e:
+            print(e)
             print(f'Bài viết k có ảnh hoặc video')
-        
-        # Lấy lượng like, chia sẻ
         try:
             like_share_element = modal.find_element(By.XPATH, types['dyamic'])
             listCount = like_share_element.text
@@ -169,7 +176,6 @@ class Crawl:
                         data['share'] = dyamic
         except Exception as e:
             print(f"Không lấy được like, comment, share: {e}")
-
         sleep(2)
         # Lấy comment
         try:
@@ -196,10 +202,7 @@ class Crawl:
                             countRemoveImage = countRemoveImage + 1
                 except:
                     pass
-                
-                if countRemoveImage > 0:
-                    print(f"Xoá được: {countRemoveImage} ảnh ở comment!")
-                
+
                 try:
                     xem_them = cm.find_element(By.XPATH, types['hasMore'])
                     if xem_them:
@@ -268,6 +271,8 @@ class Crawl:
                     user_name = textArray[0]
                     textContentComment = ' '.join(textArray[1:])
 
+                textContentComment = textContentComment.replace('Follow','').strip()
+                
                 if user_name == '' or textContentComment == '':
                     continue
 
@@ -294,7 +299,8 @@ class Crawl:
         })
         print(f"Response: {res}")
         if res['post_id']:
-            self.history_crawl_page_post_instance.update(crawl['id'],res['post_id'])
+            resUp = self.history_crawl_page_post_instance.update(crawl['id'],{'post_id':res['post_id']})
+            print(resUp)
         else:
             self.updateStatusHistory(crawl['id'],4)
 

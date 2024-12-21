@@ -36,8 +36,8 @@ removeString = [
     '·',
     '  ',
     'See Translation',  # Xem bản dịch
-    'View Original',     # Xem bản gốc
-    'Rate This Translation'  # Xếp hạng bản dịch này
+    'See original',     # Xem bản gốc
+    'Rate this translation'  # Xếp hạng bản dịch này
 ]
 
 # Xoá chữ k cần thiết khi lấy comment bài viết
